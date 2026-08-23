@@ -57,6 +57,15 @@ export interface CreateProspectInput {
   assignedToId?: string;
   notes?: string;
   researchNotes?: string;
+  // Support both flat contact inputs and nested object
+  contactFirstName?: string;
+  contactLastName?: string;
+  contactTitle?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  contactLinkedIn?: string;
+  contactPreferredChannel?: string;
+  contactIsDecisionMaker?: boolean;
   primaryContact?: {
     firstName: string;
     lastName?: string;
@@ -77,6 +86,20 @@ export async function createProspectAction(input: CreateProspectInput) {
     return { error: "Company name is required" };
   }
 
+  // Determine contact data from either flat or nested fields
+  const contactFirst = input.contactFirstName || input.primaryContact?.firstName;
+  const contactLast = input.contactLastName || input.primaryContact?.lastName;
+  const contactTitle = input.contactTitle || input.primaryContact?.jobTitle;
+  const contactEmail = input.contactEmail || input.primaryContact?.email;
+  const contactPhone = input.contactPhone || input.primaryContact?.phone;
+  const contactLinkedIn = input.contactLinkedIn || input.primaryContact?.linkedInUrl;
+  const contactPref = input.contactPreferredChannel || input.primaryContact?.preferredChannel || "EMAIL";
+  const contactIsDM = input.contactIsDecisionMaker !== undefined 
+    ? input.contactIsDecisionMaker 
+    : input.primaryContact?.isDecisionMaker !== undefined 
+    ? input.primaryContact.isDecisionMaker 
+    : true;
+
   const scoreResult = calculateLeadScore({
     googleRating: input.googleRating,
     reviewCount: input.reviewCount,
@@ -92,7 +115,7 @@ export async function createProspectAction(input: CreateProspectInput) {
     urgency: input.urgency,
     recurringPotential: input.recurringPotential,
     buyingSignals: input.buyingSignals,
-    hasDecisionMaker: !!input.primaryContact?.isDecisionMaker,
+    hasDecisionMaker: !!contactFirst && contactIsDM,
   });
 
   const prospectId = crypto.randomUUID();
@@ -106,7 +129,7 @@ export async function createProspectAction(input: CreateProspectInput) {
     niche: input.niche,
     website: input.website,
     googleMapsUrl: input.googleMapsUrl,
-    country: input.country || "USA",
+    country: input.country || "United States",
     state: input.state,
     city: input.city,
     address: input.address,
@@ -139,7 +162,7 @@ export async function createProspectAction(input: CreateProspectInput) {
     leadSource: input.leadSource || "Direct Research",
     dealValue: input.dealValue,
     stageId: input.stageId || "stage_researching",
-    outreachStatus: input.outreachStatus,
+    outreachStatus: input.outreachStatus || "READY",
     firstContactDate: input.firstContactDate,
     lastContactDate: input.lastContactDate,
     nextFollowUpDate: input.nextFollowUpDate,
@@ -151,22 +174,21 @@ export async function createProspectAction(input: CreateProspectInput) {
   });
 
   // Optional: create primary contact if provided
-  if (input.primaryContact && input.primaryContact.firstName?.trim()) {
-    const pc = input.primaryContact;
-    const fullName = `${pc.firstName} ${pc.lastName || ""}`.trim();
+  if (contactFirst && contactFirst.trim().length > 0) {
+    const fullName = `${contactFirst.trim()} ${contactLast?.trim() || ""}`.trim();
     await db.insert(contacts).values({
       id: crypto.randomUUID(),
       workspaceId: ctx.workspaceId,
       prospectId,
-      firstName: pc.firstName.trim(),
-      lastName: pc.lastName?.trim(),
+      firstName: contactFirst.trim(),
+      lastName: contactLast?.trim(),
       fullName,
-      jobTitle: pc.jobTitle,
-      email: pc.email,
-      phone: pc.phone,
-      linkedInUrl: pc.linkedInUrl,
-      preferredChannel: pc.preferredChannel || "EMAIL",
-      isDecisionMaker: pc.isDecisionMaker !== false,
+      jobTitle: contactTitle,
+      email: contactEmail,
+      phone: contactPhone,
+      linkedInUrl: contactLinkedIn,
+      preferredChannel: contactPref,
+      isDecisionMaker: contactIsDM,
     });
   }
 
