@@ -237,7 +237,7 @@ export function ProspectCreateModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl bg-white dark:bg-card border border-slate-200/80 dark:border-border/40 shadow-2xl">
+      <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl bg-card text-card-foreground border border-border shadow-2xl">
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
@@ -264,7 +264,7 @@ export function ProspectCreateModal({
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             {/* Responsive Tab Bar */}
             <div className="overflow-x-auto pb-1">
-              <TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-5 text-xs bg-slate-100 dark:bg-muted/50 p-1 border-0">
+              <TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-5 text-xs bg-muted/60 p-1 border-0">
                 <TabsTrigger value="business" className="text-xs whitespace-nowrap">
                   1. Business Identity
                 </TabsTrigger>
@@ -658,7 +658,7 @@ export function ProspectCreateModal({
 
             {/* TAB 4: Primary Decision Maker */}
             <TabsContent value="contact" className="space-y-4 pt-2">
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-muted/30 border border-slate-200/70 dark:border-border/30 text-muted-foreground text-xs">
+              <div className="p-3.5 rounded-xl bg-muted/30 border border-border/40 text-muted-foreground text-xs">
                 Optional: Add key stakeholder or decision maker to automatically establish outreach readiness.
               </div>
 

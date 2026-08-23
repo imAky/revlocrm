@@ -87,11 +87,11 @@ export default function LandingPage() {
       <section className="relative pt-16 pb-20 sm:pt-24 sm:pb-32 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto text-center space-y-6 sm:space-y-8">
           {/* Release Pill Badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-card border border-slate-200 dark:border-border/60 text-xs text-muted-foreground shadow-sm animate-in fade-in slide-in-from-top-3">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/20 dark:border-indigo-500/30 text-xs text-indigo-700 dark:text-indigo-300 shadow-sm backdrop-blur-md animate-in fade-in slide-in-from-top-3">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="font-semibold text-foreground">ProspectForge v1.0 Launch</span>
-            <span className="text-muted-foreground/60">•</span>
-            <span className="text-indigo-500 dark:text-indigo-400 font-medium">Open Source Collaborative CRM</span>
+            <span className="text-indigo-400/60">•</span>
+            <span className="font-medium">Open Source Collaborative CRM</span>
           </div>
 
           {/* Main Hero Headline */}

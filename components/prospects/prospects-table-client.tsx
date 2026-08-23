@@ -21,6 +21,15 @@ import {
   Mail,
   Phone,
   Sparkles,
+  Filter,
+  X,
+  RotateCcw,
+  Sliders,
+  DollarSign,
+  TrendingUp,
+  MapPin,
+  Check,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -82,19 +91,35 @@ export function ProspectsTableClient({
   usersList: { id: string; name: string }[];
   canDelete?: boolean;
 }) {
+  // Search & Target Field
   const [search, setSearch] = useState("");
+  const [searchTargetField, setSearchTargetField] = useState<
+    "ALL" | "name" | "niche" | "location" | "contact" | "opportunity"
+  >("ALL");
+
+  // Advanced Filters State
+  const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
   const [selectedNiche, setSelectedNiche] = useState<string>("ALL");
   const [selectedStage, setSelectedStage] = useState<string>("ALL");
   const [selectedGrade, setSelectedGrade] = useState<string>("ALL");
+  const [selectedIcp, setSelectedIcp] = useState<string>("ALL");
+  const [selectedUrgency, setSelectedUrgency] = useState<string>("ALL");
+  const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
+  const [selectedAssignee, setSelectedAssignee] = useState<string>("ALL");
+  const [minScore, setMinScore] = useState<number>(0);
+  const [minValue, setMinValue] = useState<number>(0);
+  const [requireContactInfo, setRequireContactInfo] = useState(false);
+
+  // Sorting & View Mode
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState<"score" | "name" | "value" | "date">("score");
+  const [sortBy, setSortBy] = useState<"score" | "name" | "value" | "date" | "rating">("score");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const [bulkStageId, setBulkStageId] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  // Filter niches list
+  // Distinct Filter Options
   const niches = useMemo(() => {
     const set = new Set<string>();
     initialProspects.forEach((p) => {
@@ -103,35 +128,164 @@ export function ProspectsTableClient({
     return Array.from(set);
   }, [initialProspects]);
 
+  // Reset all filters
+  const resetFilters = () => {
+    setSearch("");
+    setSearchTargetField("ALL");
+    setSelectedNiche("ALL");
+    setSelectedStage("ALL");
+    setSelectedGrade("ALL");
+    setSelectedIcp("ALL");
+    setSelectedUrgency("ALL");
+    setSelectedStatus("ALL");
+    setSelectedAssignee("ALL");
+    setMinScore(0);
+    setMinValue(0);
+    setRequireContactInfo(false);
+  };
+
+  // Active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (search.trim()) count++;
+    if (searchTargetField !== "ALL") count++;
+    if (selectedNiche !== "ALL") count++;
+    if (selectedStage !== "ALL") count++;
+    if (selectedGrade !== "ALL") count++;
+    if (selectedIcp !== "ALL") count++;
+    if (selectedUrgency !== "ALL") count++;
+    if (selectedStatus !== "ALL") count++;
+    if (selectedAssignee !== "ALL") count++;
+    if (minScore > 0) count++;
+    if (minValue > 0) count++;
+    if (requireContactInfo) count++;
+    return count;
+  }, [
+    search,
+    searchTargetField,
+    selectedNiche,
+    selectedStage,
+    selectedGrade,
+    selectedIcp,
+    selectedUrgency,
+    selectedStatus,
+    selectedAssignee,
+    minScore,
+    minValue,
+    requireContactInfo,
+  ]);
+
   // Filtered & Sorted Prospects
   const filteredProspects = useMemo(() => {
     return initialProspects
       .filter((p) => {
-        const matchesSearch =
-          !search ||
-          p.name.toLowerCase().includes(search.toLowerCase()) ||
-          p.city?.toLowerCase().includes(search.toLowerCase()) ||
-          p.niche?.toLowerCase().includes(search.toLowerCase()) ||
-          p.website?.toLowerCase().includes(search.toLowerCase()) ||
-          p.email?.toLowerCase().includes(search.toLowerCase());
+        // 1. Text Search with Target Field Routing
+        if (search.trim()) {
+          const q = search.toLowerCase().trim();
+          if (searchTargetField === "name") {
+            const matches =
+              p.name.toLowerCase().includes(q) ||
+              (p.legalName && p.legalName.toLowerCase().includes(q));
+            if (!matches) return false;
+          } else if (searchTargetField === "niche") {
+            const matches =
+              (p.niche && p.niche.toLowerCase().includes(q)) ||
+              (p.category && p.category.toLowerCase().includes(q));
+            if (!matches) return false;
+          } else if (searchTargetField === "location") {
+            const matches =
+              (p.city && p.city.toLowerCase().includes(q)) ||
+              (p.state && p.state.toLowerCase().includes(q)) ||
+              (p.country && p.country.toLowerCase().includes(q));
+            if (!matches) return false;
+          } else if (searchTargetField === "contact") {
+            const matches =
+              (p.phone && p.phone.toLowerCase().includes(q)) ||
+              (p.email && p.email.toLowerCase().includes(q));
+            if (!matches) return false;
+          } else if (searchTargetField === "opportunity") {
+            const matches =
+              (p.mainOpportunity && p.mainOpportunity.toLowerCase().includes(q)) ||
+              (p.buyingSignals && p.buyingSignals.toLowerCase().includes(q));
+            if (!matches) return false;
+          } else {
+            // Global Search Across All Fields
+            const globalMatches =
+              p.name.toLowerCase().includes(q) ||
+              p.city?.toLowerCase().includes(q) ||
+              p.state?.toLowerCase().includes(q) ||
+              p.country?.toLowerCase().includes(q) ||
+              p.niche?.toLowerCase().includes(q) ||
+              p.category?.toLowerCase().includes(q) ||
+              p.website?.toLowerCase().includes(q) ||
+              p.email?.toLowerCase().includes(q) ||
+              p.phone?.toLowerCase().includes(q) ||
+              p.mainOpportunity?.toLowerCase().includes(q) ||
+              p.buyingSignals?.toLowerCase().includes(q);
+            if (!globalMatches) return false;
+          }
+        }
 
-        const matchesNiche = selectedNiche === "ALL" || p.niche === selectedNiche;
-        const matchesStage = selectedStage === "ALL" || p.stageId === selectedStage;
-        const matchesGrade = selectedGrade === "ALL" || p.leadGrade === selectedGrade;
+        // 2. Facet filters
+        if (selectedNiche !== "ALL" && p.niche !== selectedNiche) return false;
+        if (selectedStage !== "ALL" && p.stageId !== selectedStage) return false;
+        if (selectedGrade !== "ALL" && p.leadGrade !== selectedGrade) return false;
+        if (selectedIcp !== "ALL" && (p.icpFit || "MEDIUM") !== selectedIcp) return false;
+        if (selectedUrgency !== "ALL" && (p.urgency || "MEDIUM") !== selectedUrgency) return false;
+        if (selectedStatus !== "ALL" && (p.businessStatus || "OPERATIONAL") !== selectedStatus) return false;
+        if (selectedAssignee !== "ALL") {
+          if (selectedAssignee === "UNASSIGNED" && p.assignedToId) return false;
+          if (selectedAssignee !== "UNASSIGNED" && p.assignedToId !== selectedAssignee) return false;
+        }
 
-        return matchesSearch && matchesNiche && matchesStage && matchesGrade;
+        // 3. Numeric Thresholds
+        if (minScore > 0 && p.leadScore < minScore) return false;
+        if (minValue > 0 && (Number(p.dealValue) || 0) < minValue) return false;
+
+        // 4. Contact requirement toggle
+        if (requireContactInfo && !p.phone && !p.email) return false;
+
+        return true;
       })
       .sort((a, b) => {
         let diff = 0;
         if (sortBy === "score") diff = a.leadScore - b.leadScore;
         else if (sortBy === "name") diff = a.name.localeCompare(b.name);
         else if (sortBy === "value") diff = (Number(a.dealValue) || 0) - (Number(b.dealValue) || 0);
+        else if (sortBy === "rating") diff = (Number(a.googleRating) || 0) - (Number(b.googleRating) || 0);
         else if (sortBy === "date")
           diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
 
         return sortOrder === "desc" ? -diff : diff;
       });
-  }, [initialProspects, search, selectedNiche, selectedStage, selectedGrade, sortBy, sortOrder]);
+  }, [
+    initialProspects,
+    search,
+    searchTargetField,
+    selectedNiche,
+    selectedStage,
+    selectedGrade,
+    selectedIcp,
+    selectedUrgency,
+    selectedStatus,
+    selectedAssignee,
+    minScore,
+    minValue,
+    requireContactInfo,
+    sortBy,
+    sortOrder,
+  ]);
+
+  // Aggregate stats of filtered results
+  const filteredPipelineValue = useMemo(() => {
+    return filteredProspects.reduce((acc, p) => acc + (Number(p.dealValue) || 0), 0);
+  }, [filteredProspects]);
+
+  const avgLeadScore = useMemo(() => {
+    if (filteredProspects.length === 0) return 0;
+    const total = filteredProspects.reduce((acc, p) => acc + p.leadScore, 0);
+    return Math.round(total / filteredProspects.length);
+  }, [filteredProspects]);
 
   const toggleSelectAll = () => {
     if (selectedIds.length === filteredProspects.length) {
@@ -156,7 +310,7 @@ export function ProspectsTableClient({
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete prospect "${name}"?`)) return;
+    if (!confirm(`Are you sure you want to permanently delete prospect "${name}"?`)) return;
     try {
       await deleteProspectAction(id);
     } catch (err: unknown) {
@@ -166,27 +320,82 @@ export function ProspectsTableClient({
 
   return (
     <div className="space-y-4">
-      {/* Top Filter & Action Bar */}
-      <div className="rounded-2xl border border-border/60 bg-card/70 p-3 sm:p-4 backdrop-blur-md space-y-3">
+      {/* Top Filter & Search Console */}
+      <div className="rounded-2xl border border-border/40 bg-card p-3.5 sm:p-4 shadow-xs space-y-3">
+        {/* Row 1: Search Input with Field Routing & Action Buttons */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {/* Search bar */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Search companies, domains, emails, cities..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 text-xs"
-            />
+          {/* Compound Search Bar */}
+          <div className="flex items-center flex-1 max-w-2xl gap-2">
+            {/* Target Field Selector */}
+            <select
+              value={searchTargetField}
+              onChange={(e) => setSearchTargetField(e.target.value as any)}
+              className="h-9 px-2.5 rounded-lg bg-background border border-border/60 text-xs text-foreground font-medium shrink-0 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="ALL">All Fields</option>
+              <option value="name">Company Name</option>
+              <option value="niche">Industry / Niche</option>
+              <option value="location">City / State / Country</option>
+              <option value="contact">Phone or Email</option>
+              <option value="opportunity">Opportunity / Signals</option>
+            </select>
+
+            {/* Live Search Input */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder={
+                  searchTargetField === "name"
+                    ? "Search by company name..."
+                    : searchTargetField === "niche"
+                    ? "Search industry or business category..."
+                    : searchTargetField === "location"
+                    ? "Search Austin, Texas, USA..."
+                    : searchTargetField === "contact"
+                    ? "Search phone numbers or emails..."
+                    : searchTargetField === "opportunity"
+                    ? "Search opportunity or buying signal notes..."
+                    : "Search companies, domains, emails, locations..."
+                }
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 text-xs h-9"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Quick Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Advanced Filters Drawer Toggle */}
+            <Button
+              size="sm"
+              variant={isAdvancedFiltersOpen || activeFilterCount > 0 ? "secondary" : "outline"}
+              onClick={() => setIsAdvancedFiltersOpen(!isAdvancedFiltersOpen)}
+              className="text-xs gap-1.5 h-9 font-medium"
+            >
+              <Filter className="h-3.5 w-3.5 text-indigo-500" />
+              <span>Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="h-4 w-4 rounded-full bg-primary text-white text-[10px] flex items-center justify-center font-bold">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+
+            {/* Add Prospect Modal Button */}
             <Button
               size="sm"
               variant="gradient"
               onClick={() => setIsCreateOpen(true)}
-              className="text-xs font-semibold gap-1.5 shadow-md shadow-indigo-500/20"
+              className="text-xs font-semibold gap-1.5 shadow-md shadow-indigo-500/20 h-9 px-3.5"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>Add Prospect</span>
@@ -194,87 +403,222 @@ export function ProspectsTableClient({
           </div>
         </div>
 
-        {/* Filter Row */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Niche Filter */}
+        {/* Row 2: Collapsible Advanced Multi-Facet Filter Bar */}
+        {isAdvancedFiltersOpen && (
+          <div className="pt-3 border-t border-border/30 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2.5 text-xs animate-in fade-in duration-150">
+            {/* 1. Industry / Niche */}
+            <div>
+              <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Industry / Niche</label>
+              <select
+                value={selectedNiche}
+                onChange={(e) => setSelectedNiche(e.target.value)}
+                className="w-full h-8 px-2 rounded-md bg-background border border-border/60 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="ALL">All Industries</option>
+                {niches.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 2. Pipeline Stage */}
+            <div>
+              <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Pipeline Stage</label>
+              <select
+                value={selectedStage}
+                onChange={(e) => setSelectedStage(e.target.value)}
+                className="w-full h-8 px-2 rounded-md bg-background border border-border/60 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="ALL">All Stages</option>
+                {stages.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 3. Lead Tier Grade */}
+            <div>
+              <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Lead Grade Tier</label>
+              <select
+                value={selectedGrade}
+                onChange={(e) => setSelectedGrade(e.target.value)}
+                className="w-full h-8 px-2 rounded-md bg-background border border-border/60 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="ALL">All Grades</option>
+                <option value="A+">A+ Tier (Top Priority)</option>
+                <option value="A">A Tier</option>
+                <option value="B">B Tier</option>
+                <option value="C">C Tier</option>
+                <option value="D">D Tier</option>
+              </select>
+            </div>
+
+            {/* 4. ICP Fit Level */}
+            <div>
+              <label className="block mb-1 text-[11px] font-medium text-muted-foreground">ICP Commercial Fit</label>
+              <select
+                value={selectedIcp}
+                onChange={(e) => setSelectedIcp(e.target.value)}
+                className="w-full h-8 px-2 rounded-md bg-background border border-border/60 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="ALL">All ICP Levels</option>
+                <option value="HIGH">High Fit</option>
+                <option value="MEDIUM">Medium Fit</option>
+                <option value="LOW">Low Fit</option>
+              </select>
+            </div>
+
+            {/* 5. Minimum Score Threshold */}
+            <div>
+              <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Min Lead Score</label>
+              <select
+                value={minScore}
+                onChange={(e) => setMinScore(Number(e.target.value))}
+                className="w-full h-8 px-2 rounded-md bg-background border border-border/60 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value={0}>Any Score (0+)</option>
+                <option value={60}>Score ≥ 60</option>
+                <option value={75}>Score ≥ 75</option>
+                <option value={85}>Score ≥ 85 (High Priority)</option>
+                <option value={90}>Score ≥ 90 (A+ Only)</option>
+              </select>
+            </div>
+
+            {/* 6. Minimum Deal Value */}
+            <div>
+              <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Min Deal Size</label>
+              <select
+                value={minValue}
+                onChange={(e) => setMinValue(Number(e.target.value))}
+                className="w-full h-8 px-2 rounded-md bg-background border border-border/60 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value={0}>Any Value</option>
+                <option value={10000}>$10,000+</option>
+                <option value={20000}>$20,000+</option>
+                <option value={30000}>$30,000+</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Row 3: Active Filters Chips Bar & Quick Stats */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/20 text-xs">
+          {/* Active Filter Chips */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-medium text-muted-foreground mr-1">
+              Showing <span className="font-semibold text-foreground">{filteredProspects.length}</span> of {initialProspects.length} prospects:
+            </span>
+
+            {search && (
+              <Badge variant="secondary" className="gap-1 text-[10px] pl-2 pr-1 py-0.5">
+                <span>Search: "{search}"</span>
+                <button onClick={() => setSearch("")} className="hover:text-destructive cursor-pointer">
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </Badge>
+            )}
+
+            {selectedNiche !== "ALL" && (
+              <Badge variant="secondary" className="gap-1 text-[10px] pl-2 pr-1 py-0.5">
+                <span>Niche: {selectedNiche}</span>
+                <button onClick={() => setSelectedNiche("ALL")} className="hover:text-destructive cursor-pointer">
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </Badge>
+            )}
+
+            {selectedStage !== "ALL" && (
+              <Badge variant="secondary" className="gap-1 text-[10px] pl-2 pr-1 py-0.5">
+                <span>Stage: {stages.find((s) => s.id === selectedStage)?.name || selectedStage}</span>
+                <button onClick={() => setSelectedStage("ALL")} className="hover:text-destructive cursor-pointer">
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </Badge>
+            )}
+
+            {selectedGrade !== "ALL" && (
+              <Badge variant="secondary" className="gap-1 text-[10px] pl-2 pr-1 py-0.5">
+                <span>Grade: {selectedGrade}</span>
+                <button onClick={() => setSelectedGrade("ALL")} className="hover:text-destructive cursor-pointer">
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </Badge>
+            )}
+
+            {minScore > 0 && (
+              <Badge variant="secondary" className="gap-1 text-[10px] pl-2 pr-1 py-0.5">
+                <span>Score ≥ {minScore}</span>
+                <button onClick={() => setMinScore(0)} className="hover:text-destructive cursor-pointer">
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </Badge>
+            )}
+
+            {activeFilterCount > 0 && (
+              <button
+                onClick={resetFilters}
+                className="text-[11px] text-primary hover:underline ml-1 font-medium cursor-pointer"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+
+          {/* Right: Sort & View Mode Switcher */}
+          <div className="flex items-center gap-2">
+            {/* Sort Selector */}
             <select
-              value={selectedNiche}
-              onChange={(e) => setSelectedNiche(e.target.value)}
-              className="h-9 px-3 rounded-lg bg-background/60 border border-border/80 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="h-8 px-2 rounded-md bg-background border border-border/60 text-xs text-foreground font-medium"
             >
-              <option value="ALL">All Industries</option>
-              {niches.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
+              <option value="score">Sort by Score</option>
+              <option value="value">Sort by Deal Value</option>
+              <option value="rating">Sort by Google Rating</option>
+              <option value="name">Sort by Company Name</option>
+              <option value="date">Sort by Date Added</option>
             </select>
 
-            {/* Stage Filter */}
-            <select
-              value={selectedStage}
-              onChange={(e) => setSelectedStage(e.target.value)}
-              className="h-9 px-3 rounded-lg bg-background/60 border border-border/80 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="ALL">All Stages</option>
-              {stages.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-
-            {/* Grade Filter */}
-            <select
-              value={selectedGrade}
-              onChange={(e) => setSelectedGrade(e.target.value)}
-              className="h-9 px-3 rounded-lg bg-background/60 border border-border/80 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="ALL">All Lead Grades</option>
-              <option value="A+">A+ Tier</option>
-              <option value="A">A Tier</option>
-              <option value="B">B Tier</option>
-              <option value="C">C Tier</option>
-              <option value="D">D Tier</option>
-            </select>
-
-            {/* Sort Toggle */}
+            {/* Asc / Desc Toggle */}
             <Button
               size="sm"
               variant="outline"
               onClick={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
-              className="text-xs gap-1.5 h-9"
+              className="h-8 px-2 text-xs"
+              title={sortOrder === "asc" ? "Ascending" : "Descending"}
             >
               <ArrowUpDown className="h-3 w-3" />
-              <span className="hidden sm:inline">{sortOrder === "asc" ? "Ascending" : "Descending"}</span>
             </Button>
-          </div>
 
-          {/* View Mode Toggle for Responsive Screen Sizes */}
-          <div className="flex items-center p-0.5 rounded-lg bg-muted/60 border border-border/40">
-            <button
-              onClick={() => setViewMode("table")}
-              className={`p-1.5 rounded-md text-xs transition-colors cursor-pointer ${
-                viewMode === "table"
-                  ? "bg-card text-foreground font-semibold shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              title="Table View"
-            >
-              <List className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("cards")}
-              className={`p-1.5 rounded-md text-xs transition-colors cursor-pointer ${
-                viewMode === "cards"
-                  ? "bg-card text-foreground font-semibold shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              title="Cards View"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
+            {/* View Mode Toggle */}
+            <div className="flex items-center p-0.5 rounded-lg bg-muted/60 border border-border/30">
+              <button
+                onClick={() => setViewMode("table")}
+                className={`p-1.5 rounded-md text-xs transition-colors cursor-pointer ${
+                  viewMode === "table"
+                    ? "bg-card text-foreground font-semibold shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Table View"
+              >
+                <List className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => setViewMode("cards")}
+                className={`p-1.5 rounded-md text-xs transition-colors cursor-pointer ${
+                  viewMode === "cards"
+                    ? "bg-card text-foreground font-semibold shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Cards View"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -318,14 +662,14 @@ export function ProspectsTableClient({
       {viewMode === "cards" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredProspects.length === 0 ? (
-            <div className="col-span-3 text-center py-12 rounded-2xl border border-border/60 bg-card/40 text-xs text-muted-foreground">
-              No matching prospects found.
+            <div className="col-span-3 text-center py-12 rounded-2xl border border-border/40 bg-card text-xs text-muted-foreground">
+              No prospects matching the search criteria. Try clearing some filters.
             </div>
           ) : (
             filteredProspects.map((p) => (
               <div
                 key={p.id}
-                className="p-5 rounded-2xl border border-border/60 bg-card/70 backdrop-blur-md space-y-3 hover:border-indigo-500/40 transition-all group relative"
+                className="p-5 rounded-2xl border border-border/40 bg-card shadow-xs hover:border-indigo-500/40 transition-all group space-y-3 relative"
               >
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
@@ -360,13 +704,13 @@ export function ProspectsTableClient({
                   {p.city && <div>📍 {p.city}, {p.state || p.country}</div>}
                   {p.phone && (
                     <div className="flex items-center gap-1">
-                      <Phone className="h-3 w-3 text-emerald-400" />
+                      <Phone className="h-3 w-3 text-emerald-500" />
                       <span>{p.phone}</span>
                     </div>
                   )}
                   {p.googleRating && (
-                    <div className="flex items-center gap-1 text-amber-400">
-                      <Star className="h-3 w-3 fill-amber-400" />
+                    <div className="flex items-center gap-1 text-amber-500">
+                      <Star className="h-3 w-3 fill-amber-500" />
                       <span>{p.googleRating} ({p.reviewCount || 0} reviews)</span>
                     </div>
                   )}
@@ -399,7 +743,7 @@ export function ProspectsTableClient({
         </div>
       ) : (
         /* Spreadsheet Data Table */
-        <div className="rounded-2xl border border-border/60 bg-card/70 backdrop-blur-md overflow-x-auto shadow-sm">
+        <div className="rounded-2xl border border-border/40 bg-card overflow-x-auto shadow-xs">
           <Table>
             <TableHeader>
               <TableRow>
@@ -502,8 +846,8 @@ export function ProspectsTableClient({
 
                       <TableCell>
                         {p.googleRating ? (
-                          <div className="flex items-center gap-1 text-amber-400 text-xs">
-                            <Star className="h-3.5 w-3.5 fill-amber-400" />
+                          <div className="flex items-center gap-1 text-amber-500 text-xs">
+                            <Star className="h-3.5 w-3.5 fill-amber-500" />
                             <span className="font-medium text-foreground">
                               {p.googleRating}
                             </span>

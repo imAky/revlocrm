@@ -65,20 +65,20 @@ export function DialogContent({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm transition-opacity animate-in fade-in"
+        className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm transition-opacity animate-in fade-in"
         onClick={() => ctx.onOpenChange(false)}
       />
       {/* Modal Card */}
       <div
         className={cn(
-          "relative z-50 w-full max-w-lg rounded-2xl border border-slate-200/80 dark:border-border/40 bg-white dark:bg-card p-5 sm:p-6 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-200 text-foreground",
+          "relative z-50 w-full max-w-lg rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-2xl text-card-foreground animate-in zoom-in-95 duration-200",
           className
         )}
       >
         <button
           type="button"
           onClick={() => ctx.onOpenChange(false)}
-          className="absolute right-4 top-4 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-slate-100 dark:hover:bg-muted hover:text-foreground cursor-pointer"
+          className="absolute right-4 top-4 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
         >
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>

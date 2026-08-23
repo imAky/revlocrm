@@ -202,7 +202,7 @@ export function TeamClient({
 
       {/* Invite Member Modal */}
       <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
-        <DialogContent className="max-w-md bg-white dark:bg-card border border-slate-200/80 dark:border-border/40 shadow-2xl">
+        <DialogContent className="max-w-md bg-card border border-border shadow-2xl">
           <DialogHeader>
             <DialogTitle>Invite Team Member</DialogTitle>
             <DialogDescription>
@@ -216,7 +216,7 @@ export function TeamClient({
                 Invitation token generated successfully!
               </div>
               <div className="flex items-center gap-2">
-                <Input readOnly value={lastInviteLink} className="text-xs font-mono bg-slate-50 dark:bg-muted/40" />
+                <Input readOnly value={lastInviteLink} className="text-xs font-mono bg-muted/40" />
                 <Button
                   size="sm"
                   variant="outline"
@@ -281,7 +281,7 @@ export function TeamClient({
       {/* Permissions Matrix Dialog */}
       {selectedMember && (
         <Dialog open={isPermsOpen} onOpenChange={setIsPermsOpen}>
-          <DialogContent className="max-w-xl bg-white dark:bg-card border border-slate-200/80 dark:border-border/40 shadow-2xl">
+          <DialogContent className="max-w-xl bg-card border border-border shadow-2xl">
             <DialogHeader>
               <DialogTitle>Capability Permissions Matrix</DialogTitle>
               <DialogDescription>
@@ -290,7 +290,7 @@ export function TeamClient({
             </DialogHeader>
 
             <div className="space-y-4 text-xs max-h-96 overflow-y-auto pr-1">
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-muted/30 border border-slate-200/70 dark:border-border/30 text-muted-foreground text-[11px]">
+              <div className="p-3.5 rounded-xl bg-muted/30 border border-border/40 text-muted-foreground text-[11px]">
                 Note: By default, researchers CANNOT delete records unless the explicit{" "}
                 <code className="text-primary font-mono font-semibold">prospects.delete</code> capability is granted below.
               </div>
