@@ -254,20 +254,23 @@ export function ProspectCreateModal({
     }
   };
 
+  const selectClassName =
+    "w-full h-9 px-3 rounded-lg bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-border text-xs text-slate-900 dark:text-foreground shadow-2xs focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-colors";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl bg-card text-card-foreground border border-border shadow-2xl">
+      <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl bg-white dark:bg-[#121218] text-slate-900 dark:text-slate-100 border border-slate-200/90 dark:border-border/60 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.25)] dark:shadow-[0_25px_70px_-15px_rgba(0,0,0,0.85)]">
         <DialogHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/30">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80 dark:border-border/40">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
-                <DialogTitle className="text-base sm:text-lg font-bold">
+                <DialogTitle className="text-base sm:text-lg font-bold text-slate-950 dark:text-white">
                   {creationMode === "quick" ? "Quick Add Prospect" : "Full Prospect Qualification"}
                 </DialogTitle>
-                <DialogDescription className="text-xs">
+                <DialogDescription className="text-xs text-slate-600 dark:text-slate-400">
                   {creationMode === "quick"
                     ? "Add a company in 5 seconds with essential location & contact data."
                     : "Comprehensive 5-step digital audit, ICP commercial fit, and decision maker."}
@@ -276,29 +279,29 @@ export function ProspectCreateModal({
             </div>
 
             {/* Mode Switcher Toggle */}
-            <div className="flex items-center p-1 rounded-xl bg-muted/60 border border-border/40 shrink-0 self-start sm:self-auto">
+            <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-zinc-800/70 border border-slate-200/80 dark:border-border/40 shrink-0 self-start sm:self-auto shadow-2xs">
               <button
                 type="button"
                 onClick={() => setCreationMode("quick")}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                   creationMode === "quick"
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-white dark:bg-card text-slate-900 dark:text-white shadow-xs"
+                    : "text-slate-600 dark:text-muted-foreground hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
-                <Zap className="h-3 w-3 text-amber-500" />
+                <Zap className="h-3.5 w-3.5 text-amber-500" />
                 <span>Quick Add</span>
               </button>
               <button
                 type="button"
                 onClick={() => setCreationMode("full")}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                   creationMode === "full"
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-white dark:bg-card text-slate-900 dark:text-white shadow-xs"
+                    : "text-slate-600 dark:text-muted-foreground hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
-                <Layers className="h-3 w-3 text-indigo-500" />
+                <Layers className="h-3.5 w-3.5 text-indigo-500" />
                 <span>Full Audit (5-Step)</span>
               </button>
             </div>
@@ -312,7 +315,7 @@ export function ProspectCreateModal({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
           {/* ========================================================= */}
           {/* QUICK ADD MODE (Fast 5-second workflow)                    */}
           {/* ========================================================= */}
@@ -320,7 +323,7 @@ export function ProspectCreateModal({
             <div className="space-y-4 pt-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
                 <div className="sm:col-span-2">
-                  <label className="block mb-1.5 font-semibold text-foreground">
+                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">
                     Company Name <span className="text-destructive">*</span>
                   </label>
                   <Input
@@ -333,13 +336,13 @@ export function ProspectCreateModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-medium text-foreground">
+                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">
                     Industry / Niche <span className="text-destructive">*</span>
                   </label>
                   <select
                     value={formData.niche}
                     onChange={(e) => setFormData({ ...formData, niche: e.target.value })}
-                    className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className={selectClassName}
                   >
                     <option value="Roofing & Construction">Roofing & Construction</option>
                     <option value="HVAC & Climate Control">HVAC & Climate Control</option>
@@ -358,13 +361,13 @@ export function ProspectCreateModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-medium text-foreground">
+                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">
                     Country <span className="text-destructive">*</span>
                   </label>
                   <select
                     value={formData.country}
                     onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                    className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className={selectClassName}
                   >
                     <option value="United States">United States</option>
                     <option value="United Kingdom">United Kingdom</option>
@@ -377,7 +380,7 @@ export function ProspectCreateModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-medium text-foreground">City</label>
+                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">City</label>
                   <Input
                     placeholder="e.g. Austin"
                     value={formData.city}
@@ -386,7 +389,7 @@ export function ProspectCreateModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-medium text-foreground">State / Province</label>
+                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">State / Province</label>
                   <Input
                     placeholder="e.g. Texas"
                     value={formData.state}
@@ -395,7 +398,7 @@ export function ProspectCreateModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-medium text-foreground">Website URL</label>
+                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Website URL</label>
                   <Input
                     placeholder="https://example.com"
                     value={formData.website}
@@ -404,7 +407,7 @@ export function ProspectCreateModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-medium text-foreground">Google Maps URL</label>
+                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Google Maps URL</label>
                   <Input
                     placeholder="https://maps.google.com/..."
                     value={formData.googleMapsUrl}
@@ -413,7 +416,7 @@ export function ProspectCreateModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-medium text-foreground">Main Business Phone</label>
+                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Main Business Phone</label>
                   <Input
                     placeholder="+1 (512) 555-0199"
                     value={formData.phone}
@@ -422,7 +425,7 @@ export function ProspectCreateModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-medium text-foreground">Public Email</label>
+                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Public Email</label>
                   <Input
                     type="email"
                     placeholder="contact@company.com"
@@ -432,11 +435,11 @@ export function ProspectCreateModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-medium text-foreground">Initial Pipeline Stage</label>
+                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Initial Pipeline Stage</label>
                   <select
                     value={formData.stageId}
                     onChange={(e) => setFormData({ ...formData, stageId: e.target.value })}
-                    className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className={selectClassName}
                   >
                     {stages.map((s) => (
                       <option key={s.id} value={s.id}>
@@ -447,7 +450,7 @@ export function ProspectCreateModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-medium text-foreground">Estimated Deal Value ($)</label>
+                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Estimated Deal Value ($)</label>
                   <Input
                     type="number"
                     placeholder="15000"
@@ -457,7 +460,7 @@ export function ProspectCreateModal({
                 </div>
               </div>
 
-              <DialogFooter className="pt-3 border-t border-border/30">
+              <DialogFooter className="pt-3 border-t border-slate-200/80 dark:border-border/40">
                 <Button
                   type="button"
                   variant="outline"
@@ -484,7 +487,7 @@ export function ProspectCreateModal({
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               {/* Responsive Tab Bar */}
               <div className="overflow-x-auto pb-1">
-                <TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-5 text-xs bg-muted/60 p-1 border-0">
+                <TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-5 text-xs bg-slate-100 dark:bg-zinc-800/70 p-1 border border-slate-200/80 dark:border-border/40">
                   <TabsTrigger value="business" className="text-xs whitespace-nowrap">
                     1. Business Identity
                   </TabsTrigger>
@@ -507,7 +510,7 @@ export function ProspectCreateModal({
               <TabsContent value="business" className="space-y-4 pt-2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
                   <div className="sm:col-span-2">
-                    <label className="block mb-1.5 font-semibold text-foreground">
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">
                       Company Name <span className="text-destructive">*</span>
                     </label>
                     <Input
@@ -519,7 +522,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Legal / Entity Name</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Legal / Entity Name</label>
                     <Input
                       placeholder="e.g. Northstar Construction Group LLC"
                       value={formData.legalName}
@@ -528,11 +531,11 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Industry / Niche</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Industry / Niche</label>
                     <select
                       value={formData.niche}
                       onChange={(e) => setFormData({ ...formData, niche: e.target.value })}
-                      className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className={selectClassName}
                     >
                       <option value="Roofing & Construction">Roofing & Construction</option>
                       <option value="HVAC & Climate Control">HVAC & Climate Control</option>
@@ -551,11 +554,11 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Country</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Country</label>
                     <select
                       value={formData.country}
                       onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                      className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className={selectClassName}
                     >
                       <option value="United States">United States</option>
                       <option value="United Kingdom">United Kingdom</option>
@@ -568,7 +571,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">City</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">City</label>
                     <Input
                       placeholder="e.g. Austin"
                       value={formData.city}
@@ -577,7 +580,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">State / Province</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">State / Province</label>
                     <Input
                       placeholder="e.g. Texas"
                       value={formData.state}
@@ -586,7 +589,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Street Address</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Street Address</label>
                     <Input
                       placeholder="e.g. 7800 Shoal Creek Blvd #120"
                       value={formData.address}
@@ -595,7 +598,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Postal / ZIP Code</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Postal / ZIP Code</label>
                     <Input
                       placeholder="78757"
                       value={formData.postalCode}
@@ -604,7 +607,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Main Business Phone</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Main Business Phone</label>
                     <Input
                       placeholder="+1 (512) 555-0199"
                       value={formData.phone}
@@ -613,7 +616,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Public Email</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Public Email</label>
                     <Input
                       type="email"
                       placeholder="info@northstar.demo"
@@ -623,11 +626,11 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Business Status</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Business Status</label>
                     <select
                       value={formData.businessStatus}
                       onChange={(e) => setFormData({ ...formData, businessStatus: e.target.value })}
-                      className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className={selectClassName}
                     >
                       <option value="OPERATIONAL">Active / Operational</option>
                       <option value="TEMPORARILY_CLOSED">Temporarily Closed</option>
@@ -637,7 +640,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Website URL</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Website URL</label>
                     <Input
                       placeholder="https://northstarroofing.demo"
                       value={formData.website}
@@ -646,7 +649,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Google Maps URL</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Google Maps URL</label>
                     <Input
                       placeholder="https://maps.google.com/..."
                       value={formData.googleMapsUrl}
@@ -673,7 +676,7 @@ export function ProspectCreateModal({
               <TabsContent value="digital" className="space-y-4 pt-2">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs">
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Google Rating (0-5)</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Google Rating (0-5)</label>
                     <Input
                       type="number"
                       step="0.1"
@@ -686,7 +689,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Google Review Count</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Google Review Count</label>
                     <Input
                       type="number"
                       placeholder="45"
@@ -696,7 +699,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Speed Score (0-100)</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Speed Score (0-100)</label>
                     <Input
                       type="number"
                       min="0"
@@ -708,11 +711,11 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Website Quality</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Website Quality</label>
                     <select
                       value={formData.websiteQuality}
                       onChange={(e) => setFormData({ ...formData, websiteQuality: e.target.value })}
-                      className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className={selectClassName}
                     >
                       <option value="EXCELLENT">Excellent (Modern & Fast)</option>
                       <option value="GOOD">Good (Functional)</option>
@@ -722,11 +725,11 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Mobile UX Audit</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Mobile UX Audit</label>
                     <select
                       value={formData.mobileUx}
                       onChange={(e) => setFormData({ ...formData, mobileUx: e.target.value })}
-                      className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className={selectClassName}
                     >
                       <option value="EXCELLENT">Excellent Mobile Flow</option>
                       <option value="GOOD">Good</option>
@@ -736,11 +739,11 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">CTA / Conversion Flow</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">CTA / Conversion Flow</label>
                     <select
                       value={formData.ctaQuality}
                       onChange={(e) => setFormData({ ...formData, ctaQuality: e.target.value })}
-                      className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className={selectClassName}
                     >
                       <option value="STRONG">Strong Sticky CTA</option>
                       <option value="GOOD">Good</option>
@@ -750,11 +753,11 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Quote / Booking System</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Quote / Booking System</label>
                     <select
                       value={formData.quoteBookingFlow}
                       onChange={(e) => setFormData({ ...formData, quoteBookingFlow: e.target.value })}
-                      className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className={selectClassName}
                     >
                       <option value="EXCELLENT">Interactive Multi-step Funnel</option>
                       <option value="GOOD">Standard Contact Form</option>
@@ -763,11 +766,11 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Trust Signals & Badges</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Trust Signals & Badges</label>
                     <select
                       value={formData.trustSignals}
                       onChange={(e) => setFormData({ ...formData, trustSignals: e.target.value })}
-                      className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className={selectClassName}
                     >
                       <option value="STRONG">Strong (BBB, GAF Master, 100+ Reviews)</option>
                       <option value="AVERAGE">Average Badges</option>
@@ -776,11 +779,11 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Local Search Presence</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Local Search Presence</label>
                     <select
                       value={formData.seoVisibility}
                       onChange={(e) => setFormData({ ...formData, seoVisibility: e.target.value })}
-                      className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className={selectClassName}
                     >
                       <option value="STRONG">Top 3 Map Pack</option>
                       <option value="AVERAGE">First Page Organic</option>
@@ -816,11 +819,11 @@ export function ProspectCreateModal({
               <TabsContent value="qualification" className="space-y-4 pt-2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">ICP Fit</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">ICP Fit</label>
                     <select
                       value={formData.icpFit}
                       onChange={(e) => setFormData({ ...formData, icpFit: e.target.value })}
-                      className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className={selectClassName}
                     >
                       <option value="HIGH">High Fit (Ideal Client)</option>
                       <option value="MEDIUM">Medium Fit</option>
@@ -829,11 +832,11 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Ability to Pay</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Ability to Pay</label>
                     <select
                       value={formData.abilityToPay}
                       onChange={(e) => setFormData({ ...formData, abilityToPay: e.target.value })}
-                      className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className={selectClassName}
                     >
                       <option value="HIGH">High (Strong Revenue / Ad Budget)</option>
                       <option value="MEDIUM">Medium</option>
@@ -842,11 +845,11 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Sales Urgency</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Sales Urgency</label>
                     <select
                       value={formData.urgency}
                       onChange={(e) => setFormData({ ...formData, urgency: e.target.value })}
-                      className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className={selectClassName}
                     >
                       <option value="HIGH">High (Immediate Need / Hiring)</option>
                       <option value="MEDIUM">Medium</option>
@@ -855,11 +858,11 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Recurring Revenue Potential</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Recurring Revenue Potential</label>
                     <select
                       value={formData.recurringPotential}
                       onChange={(e) => setFormData({ ...formData, recurringPotential: e.target.value })}
-                      className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className={selectClassName}
                     >
                       <option value="HIGH">High (Monthly Retainer)</option>
                       <option value="MEDIUM">Medium</option>
@@ -868,7 +871,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Target Deal Value ($)</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Target Deal Value ($)</label>
                     <Input
                       type="number"
                       placeholder="15000"
@@ -878,11 +881,11 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Initial Pipeline Stage</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Initial Pipeline Stage</label>
                     <select
                       value={formData.stageId}
                       onChange={(e) => setFormData({ ...formData, stageId: e.target.value })}
-                      className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className={selectClassName}
                     >
                       {stages.map((s) => (
                         <option key={s.id} value={s.id}>
@@ -893,7 +896,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block mb-1.5 font-medium text-foreground">Main Commercial Opportunity</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Main Commercial Opportunity</label>
                     <Input
                       placeholder="e.g. Modern booking funnel + Local Services ads to double commercial leads"
                       value={formData.mainOpportunity}
@@ -902,7 +905,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block mb-1.5 font-medium text-foreground">Observed Buying Signals</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Observed Buying Signals</label>
                     <Input
                       placeholder="e.g. Recently opened 2nd warehouse; hiring for 4 commercial sales reps"
                       value={formData.buyingSignals}
@@ -936,13 +939,13 @@ export function ProspectCreateModal({
 
               {/* TAB 4: Primary Decision Maker */}
               <TabsContent value="contact" className="space-y-4 pt-2">
-                <div className="p-3.5 rounded-xl bg-muted/30 border border-border/40 text-muted-foreground text-xs">
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-muted/30 border border-slate-200/80 dark:border-border/40 text-slate-600 dark:text-muted-foreground text-xs">
                   Optional: Add key stakeholder or decision maker to automatically establish outreach readiness.
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">First Name</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">First Name</label>
                     <Input
                       placeholder="e.g. Marcus"
                       value={formData.contactFirstName}
@@ -951,7 +954,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Last Name</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Last Name</label>
                     <Input
                       placeholder="e.g. Vance"
                       value={formData.contactLastName}
@@ -960,7 +963,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Job Title / Role</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Job Title / Role</label>
                     <Input
                       placeholder="e.g. Founder & Managing Partner"
                       value={formData.contactTitle}
@@ -969,7 +972,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Direct Email</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Direct Email</label>
                     <Input
                       type="email"
                       placeholder="marcus@company.com"
@@ -979,7 +982,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Direct Phone</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Direct Phone</label>
                     <Input
                       placeholder="+1 (512) 555-0143"
                       value={formData.contactPhone}
@@ -988,7 +991,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">LinkedIn Profile URL</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">LinkedIn Profile URL</label>
                     <Input
                       placeholder="https://linkedin.com/in/..."
                       value={formData.contactLinkedIn}
@@ -1024,11 +1027,11 @@ export function ProspectCreateModal({
               <TabsContent value="notes" className="space-y-4 pt-2">
                 <div className="space-y-3 text-xs">
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Assigned Researcher / Sales Rep</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Assigned Researcher / Sales Rep</label>
                     <select
                       value={formData.assignedToId}
                       onChange={(e) => setFormData({ ...formData, assignedToId: e.target.value })}
-                      className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className={selectClassName}
                     >
                       <option value="">Unassigned</option>
                       {workspaceUsers.map((u) => (
@@ -1040,7 +1043,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Business & Opportunity Notes</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Business & Opportunity Notes</label>
                     <Textarea
                       rows={3}
                       placeholder="Context on current marketing tech stack, owner background, or recent achievements..."
@@ -1050,7 +1053,7 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-medium text-foreground">Research & Strategic Insights</label>
+                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Research & Strategic Insights</label>
                     <Textarea
                       rows={3}
                       placeholder="Strategic talking points, competitors in the area, custom pitch angles..."
@@ -1060,7 +1063,7 @@ export function ProspectCreateModal({
                   </div>
                 </div>
 
-                <DialogFooter className="pt-3 border-t border-border/30">
+                <DialogFooter className="pt-3 border-t border-slate-200/80 dark:border-border/40">
                   <Button
                     type="button"
                     variant="outline"

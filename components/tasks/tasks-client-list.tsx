@@ -198,7 +198,7 @@ export function TasksClientList({
 
           <form onSubmit={handleCreate} className="space-y-4 text-xs">
             <div>
-              <label className="block mb-1 font-medium text-foreground">Task Title *</label>
+              <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Task Title *</label>
               <Input
                 required
                 placeholder="e.g. Call decision maker regarding proposal review"
@@ -208,11 +208,11 @@ export function TasksClientList({
             </div>
 
             <div>
-              <label className="block mb-1 font-medium text-foreground">Priority</label>
+              <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Priority</label>
               <select
                 value={form.priority}
                 onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                className="w-full h-9 px-3 rounded-lg bg-background border border-border text-xs text-foreground"
+                className="w-full h-9 px-3 rounded-lg bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-border text-xs text-slate-900 dark:text-foreground shadow-2xs focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
               >
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium</option>
@@ -222,7 +222,7 @@ export function TasksClientList({
             </div>
 
             <div>
-              <label className="block mb-1 font-medium text-foreground">Due Date</label>
+              <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Due Date</label>
               <Input
                 type="date"
                 value={form.dueDate}

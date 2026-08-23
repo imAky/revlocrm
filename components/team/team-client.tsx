@@ -91,16 +91,16 @@ export function TeamClient({
               setCopied(false);
               setIsInviteOpen(true);
             }}
-            className="text-xs gap-1.5 shadow-md shadow-indigo-500/20"
+            className="text-xs gap-1.5 shadow-md shadow-indigo-500/20 font-semibold"
           >
             <UserPlus className="h-3.5 w-3.5" />
-            Invite Member
+            <span>Invite Member</span>
           </Button>
         )}
       </div>
 
       {/* Members Table */}
-      <div className="rounded-2xl border border-border/40 bg-card overflow-hidden shadow-sm">
+      <div className="rounded-2xl border border-slate-200 dark:border-border/40 bg-white dark:bg-card overflow-hidden shadow-xs">
         <Table>
           <TableHeader>
             <TableRow>
@@ -135,7 +135,7 @@ export function TeamClient({
                           roleId: e.target.value,
                         });
                       }}
-                      className="h-7 px-2 rounded-md bg-background border border-border/60 text-xs text-foreground font-medium"
+                      className="h-7 px-2 rounded-md bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border text-xs text-foreground font-medium shadow-2xs"
                     >
                       {rolesList.map((r) => (
                         <option key={r.id} value={r.id}>
@@ -185,7 +185,7 @@ export function TeamClient({
           <h3 className="text-sm font-bold text-foreground">Pending Invitations</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {invitationsList.map((inv) => (
-              <div key={inv.id} className="p-4 rounded-2xl bg-card border border-border/30 shadow-xs space-y-2 text-xs">
+              <div key={inv.id} className="p-4 rounded-2xl bg-white dark:bg-card border border-slate-200 dark:border-border/40 shadow-xs space-y-2 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-foreground truncate">{inv.email}</span>
                   <Badge variant="warning" className="text-[9px] capitalize">{inv.status}</Badge>
@@ -202,7 +202,7 @@ export function TeamClient({
 
       {/* Invite Member Modal */}
       <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
-        <DialogContent className="max-w-md bg-card border border-border shadow-2xl">
+        <DialogContent className="max-w-md bg-white dark:bg-[#121218] border border-slate-200/90 dark:border-border/60 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.25)] dark:shadow-[0_25px_70px_-15px_rgba(0,0,0,0.85)]">
           <DialogHeader>
             <DialogTitle>Invite Team Member</DialogTitle>
             <DialogDescription>
@@ -216,7 +216,7 @@ export function TeamClient({
                 Invitation token generated successfully!
               </div>
               <div className="flex items-center gap-2">
-                <Input readOnly value={lastInviteLink} className="text-xs font-mono bg-muted/40" />
+                <Input readOnly value={lastInviteLink} className="text-xs font-mono bg-slate-50 dark:bg-zinc-900" />
                 <Button
                   size="sm"
                   variant="outline"
@@ -240,7 +240,7 @@ export function TeamClient({
           ) : (
             <form onSubmit={handleInvite} className="space-y-4 text-xs">
               <div>
-                <label className="block mb-1.5 font-medium text-foreground">Colleague's Email Address *</label>
+                <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Colleague's Email Address *</label>
                 <Input
                   type="email"
                   required
@@ -251,11 +251,11 @@ export function TeamClient({
               </div>
 
               <div>
-                <label className="block mb-1.5 font-medium text-foreground">Role Preset</label>
+                <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Role Preset</label>
                 <select
                   value={inviteRoleId}
                   onChange={(e) => setInviteRoleId(e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full h-9 px-3 rounded-lg bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-border text-xs text-slate-900 dark:text-foreground shadow-2xs focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
                 >
                   {rolesList.map((r) => (
                     <option key={r.id} value={r.id}>
@@ -281,7 +281,7 @@ export function TeamClient({
       {/* Permissions Matrix Dialog */}
       {selectedMember && (
         <Dialog open={isPermsOpen} onOpenChange={setIsPermsOpen}>
-          <DialogContent className="max-w-xl bg-card border border-border shadow-2xl">
+          <DialogContent className="max-w-xl bg-white dark:bg-[#121218] border border-slate-200/90 dark:border-border/60 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.25)] dark:shadow-[0_25px_70px_-15px_rgba(0,0,0,0.85)]">
             <DialogHeader>
               <DialogTitle>Capability Permissions Matrix</DialogTitle>
               <DialogDescription>
@@ -290,7 +290,7 @@ export function TeamClient({
             </DialogHeader>
 
             <div className="space-y-4 text-xs max-h-96 overflow-y-auto pr-1">
-              <div className="p-3.5 rounded-xl bg-muted/30 border border-border/40 text-muted-foreground text-[11px]">
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-muted/30 border border-slate-200/80 dark:border-border/40 text-slate-600 dark:text-muted-foreground text-[11px]">
                 Note: By default, researchers CANNOT delete records unless the explicit{" "}
                 <code className="text-primary font-mono font-semibold">prospects.delete</code> capability is granted below.
               </div>
@@ -304,17 +304,17 @@ export function TeamClient({
                 ].map((cap) => (
                   <div
                     key={cap.key}
-                    className="p-3.5 rounded-xl bg-card border border-border/40 flex items-center justify-between shadow-xs"
+                    className="p-3.5 rounded-xl bg-slate-50/70 dark:bg-card border border-slate-200 dark:border-border/40 flex items-center justify-between shadow-2xs"
                   >
                     <div>
-                      <span className="font-semibold text-foreground block">{cap.title}</span>
-                      <span className="text-[11px] text-muted-foreground">{cap.desc}</span>
+                      <span className="font-semibold text-slate-900 dark:text-foreground block">{cap.title}</span>
+                      <span className="text-[11px] text-slate-500 dark:text-muted-foreground">{cap.desc}</span>
                     </div>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleTogglePerm(selectedMember.membershipId, cap.key, false)}
-                      className="text-xs h-7.5 px-3 font-medium"
+                      className="text-xs h-7.5 px-3 font-medium shadow-2xs"
                     >
                       Toggle Permission
                     </Button>

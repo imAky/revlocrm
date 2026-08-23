@@ -990,7 +990,7 @@ export function ProspectDetailClient({
                 <select
                   value={editForm.icpFit}
                   onChange={(e) => setEditForm({ ...editForm, icpFit: e.target.value })}
-                  className="w-full h-9 px-3 rounded-lg bg-background border border-border text-xs text-foreground"
+                  className="w-full h-9 px-3 rounded-lg bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-border text-xs text-slate-900 dark:text-foreground shadow-2xs focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
                 >
                   <option value="HIGH">High Fit</option>
                   <option value="MEDIUM">Medium Fit</option>
@@ -999,11 +999,11 @@ export function ProspectDetailClient({
               </div>
 
               <div>
-                <label className="block mb-1 font-medium text-foreground">Ability to Pay</label>
+                <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Ability to Pay</label>
                 <select
                   value={editForm.abilityToPay}
                   onChange={(e) => setEditForm({ ...editForm, abilityToPay: e.target.value })}
-                  className="w-full h-9 px-3 rounded-lg bg-background border border-border text-xs text-foreground"
+                  className="w-full h-9 px-3 rounded-lg bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-border text-xs text-slate-900 dark:text-foreground shadow-2xs focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
                 >
                   <option value="HIGH">High</option>
                   <option value="MEDIUM">Medium</option>
@@ -1012,11 +1012,11 @@ export function ProspectDetailClient({
               </div>
 
               <div>
-                <label className="block mb-1 font-medium text-foreground">Sales Urgency</label>
+                <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Sales Urgency</label>
                 <select
                   value={editForm.urgency}
                   onChange={(e) => setEditForm({ ...editForm, urgency: e.target.value })}
-                  className="w-full h-9 px-3 rounded-lg bg-background border border-border text-xs text-foreground"
+                  className="w-full h-9 px-3 rounded-lg bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-border text-xs text-slate-900 dark:text-foreground shadow-2xs focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
                 >
                   <option value="HIGH">High</option>
                   <option value="MEDIUM">Medium</option>
@@ -1171,11 +1171,11 @@ export function ProspectDetailClient({
 
           <form onSubmit={handleActivitySubmit} className="space-y-4 text-xs">
             <div>
-              <label className="block mb-1 font-medium text-foreground">Activity Type</label>
+              <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Activity Type</label>
               <select
                 value={activityForm.type}
                 onChange={(e) => setActivityForm({ ...activityForm, type: e.target.value })}
-                className="w-full h-9 px-3 rounded-lg bg-background border border-border text-xs text-foreground"
+                className="w-full h-9 px-3 rounded-lg bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-border text-xs text-slate-900 dark:text-foreground shadow-2xs focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
               >
                 <option value="NOTE">Internal Research Note</option>
                 <option value="PHONE">Phone Call</option>
@@ -1187,7 +1187,7 @@ export function ProspectDetailClient({
             </div>
 
             <div>
-              <label className="block mb-1 font-medium text-foreground">Title / Headline *</label>
+              <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Title / Headline *</label>
               <Input
                 required
                 placeholder="e.g. Discovery call completed with founder"
@@ -1197,7 +1197,7 @@ export function ProspectDetailClient({
             </div>
 
             <div>
-              <label className="block mb-1 font-medium text-foreground">Description & Key Points</label>
+              <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Description & Key Points</label>
               <Textarea
                 rows={3}
                 placeholder="Discussed scope, estimated budget, and timeline..."
@@ -1207,7 +1207,7 @@ export function ProspectDetailClient({
             </div>
 
             <div>
-              <label className="block mb-1 font-medium text-foreground">Outcome / Takeaway</label>
+              <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Outcome / Takeaway</label>
               <Input
                 placeholder="e.g. Requested customized proposal by Thursday"
                 value={activityForm.outcome}
@@ -1237,7 +1237,7 @@ export function ProspectDetailClient({
 
           <form onSubmit={handleTaskSubmit} className="space-y-4 text-xs">
             <div>
-              <label className="block mb-1 font-medium text-foreground">Task Title *</label>
+              <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Task Title *</label>
               <Input
                 required
                 placeholder="e.g. Follow up on proposal via phone"
@@ -1247,11 +1247,11 @@ export function ProspectDetailClient({
             </div>
 
             <div>
-              <label className="block mb-1 font-medium text-foreground">Priority</label>
+              <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Priority</label>
               <select
                 value={taskForm.priority}
                 onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
-                className="w-full h-9 px-3 rounded-lg bg-background border border-border text-xs text-foreground"
+                className="w-full h-9 px-3 rounded-lg bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-border text-xs text-slate-900 dark:text-foreground shadow-2xs focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
               >
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium</option>
