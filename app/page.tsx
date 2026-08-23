@@ -66,8 +66,18 @@ export default function LandingPage() {
             </a>
           </nav>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5">
             <ThemeToggle />
+            <a
+              href="https://github.com/imAky/revlocrm"
+              target="_blank"
+              rel="noreferrer"
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-1.5 text-xs font-medium"
+              title="GitHub Repository"
+            >
+              <Code2 className="h-4 w-4" />
+              <span className="hidden sm:inline">GitHub</span>
+            </a>
             <Link href="/login">
               <Button variant="ghost" size="sm" className="text-xs font-medium">
                 Sign In
@@ -119,6 +129,12 @@ export default function LandingPage() {
                 <span>Create Workspace</span>
               </Button>
             </Link>
+            <a href="https://github.com/imAky/revlocrm" target="_blank" rel="noreferrer">
+              <Button size="lg" variant="outline" className="gap-2 text-sm font-semibold px-5 border-border/80 text-foreground">
+                <Code2 className="h-4 w-4 text-indigo-500" />
+                <span>Star on GitHub</span>
+              </Button>
+            </a>
           </div>
 
           {/* Trust Highlights */}
