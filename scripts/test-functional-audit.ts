@@ -23,7 +23,7 @@ import { CAPABILITIES } from "../lib/permissions/capabilities";
 
 async function runFullFunctionalAudit() {
   console.log("===============================================================");
-  console.log("🔍 PROSPECTFORGE COMPLETE FUNCTIONAL & TECHNICAL AUDIT");
+  console.log("🔍 REVLO CRM COMPLETE FUNCTIONAL & TECHNICAL AUDIT");
   console.log("===============================================================\n");
 
   let totalTests = 0;

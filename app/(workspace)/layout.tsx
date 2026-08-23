@@ -17,7 +17,7 @@ export default async function WorkspaceLayout({
     .where(eq(workspaces.id, ctx.workspaceId))
     .limit(1);
 
-  const workspaceName = ws[0]?.name || "ProspectForge Growth Lab";
+  const workspaceName = ws[0]?.name || "Revlo Growth Lab";
 
   const stagesList = await db
     .select({ id: pipelineStages.id, name: pipelineStages.name })

@@ -2,10 +2,10 @@ import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.SESSION_SECRET || "prospectforge-super-secure-production-ready-secret-key-32chars"
+  process.env.SESSION_SECRET || "revlo-super-secure-production-ready-secret-key-32chars"
 );
 
-const SESSION_COOKIE_NAME = "prospectforge_session";
+const SESSION_COOKIE_NAME = "revlo_session";
 
 export interface SessionPayload {
   userId: string;

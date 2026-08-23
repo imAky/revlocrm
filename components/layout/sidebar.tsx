@@ -47,7 +47,7 @@ const managementNavItems: NavItem[] = [
 
 export function SidebarContent({
   roleName = "admin",
-  workspaceName = "ProspectForge Growth Lab",
+  workspaceName = "Revlo Growth Lab",
   onItemClick,
 }: {
   roleName?: string;
@@ -67,9 +67,9 @@ export function SidebarContent({
             </div>
             <div>
               <div className="font-bold text-sm tracking-tight text-foreground flex items-center gap-1.5">
-                ProspectForge
+                Revlo
                 <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                  v1
+                  CRM
                 </span>
               </div>
               <p className="text-[11px] text-muted-foreground truncate max-w-[130px]">
@@ -199,7 +199,7 @@ export function SidebarContent({
 // Desktop Sidebar (Sticky, hidden on mobile/tablet < 1024px)
 export function AppSidebar({
   roleName = "admin",
-  workspaceName = "ProspectForge Growth Lab",
+  workspaceName = "Revlo Growth Lab",
 }: {
   roleName?: string;
   workspaceName?: string;
@@ -216,7 +216,7 @@ export function MobileSidebar({
   open,
   onClose,
   roleName = "admin",
-  workspaceName = "ProspectForge Growth Lab",
+  workspaceName = "Revlo Growth Lab",
 }: {
   open: boolean;
   onClose: () => void;

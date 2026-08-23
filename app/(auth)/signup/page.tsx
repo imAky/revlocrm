@@ -34,7 +34,7 @@ export default function SignupPage() {
               <Sparkles className="h-6 w-6" />
             </div>
             <span className="text-2xl font-bold tracking-tight text-foreground">
-              ProspectForge
+              Revlo
             </span>
           </Link>
           <h1 className="text-xl font-semibold text-foreground">Create your workspace</h1>

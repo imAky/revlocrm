@@ -46,7 +46,7 @@ export default function LoginPage() {
               <Sparkles className="h-6 w-6" />
             </div>
             <span className="text-2xl font-bold tracking-tight text-foreground">
-              ProspectForge
+              Revlo
             </span>
           </Link>
           <h1 className="text-xl font-semibold text-foreground">Welcome back</h1>
@@ -120,7 +120,7 @@ export default function LoginPage() {
                   type="email"
                   required
                   placeholder="name@company.com"
-                  defaultValue="admin@prospectforge.demo"
+                  defaultValue="admin@revlo.demo"
                   className="pl-9"
                 />
               </div>

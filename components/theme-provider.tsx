@@ -17,7 +17,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     // Read from localStorage or system preference
-    const savedTheme = localStorage.getItem("prospectforge_theme") as Theme | null;
+    const savedTheme = localStorage.getItem("revlo_theme") as Theme | null;
     if (savedTheme === "light" || savedTheme === "dark") {
       setThemeState(savedTheme);
       applyTheme(savedTheme);
@@ -42,7 +42,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setTheme = (t: Theme) => {
     setThemeState(t);
-    localStorage.setItem("prospectforge_theme", t);
+    localStorage.setItem("revlo_theme", t);
     applyTheme(t);
   };
 

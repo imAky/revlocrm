@@ -16,7 +16,7 @@ export default async function SettingsPage() {
     .where(eq(workspaces.id, ctx.workspaceId))
     .limit(1);
 
-  const workspace = ws[0] || { name: "ProspectForge Growth Lab", slug: "prospectforge" };
+  const workspace = ws[0] || { name: "Revlo Growth Lab", slug: "revlo" };
 
   return (
     <div className="space-y-6 max-w-4xl">

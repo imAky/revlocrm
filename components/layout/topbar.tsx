@@ -10,7 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 export function AppTopbar({
   userName = "Sarah Connor",
-  userEmail = "admin@prospectforge.demo",
+  userEmail = "admin@revlo.demo",
   roleName = "admin",
   stages = [],
   workspaceUsers = [],

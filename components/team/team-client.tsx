@@ -244,7 +244,7 @@ export function TeamClient({
                 <Input
                   type="email"
                   required
-                  placeholder="alex@prospectforge.demo"
+                  placeholder="alex@revlo.demo"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                 />

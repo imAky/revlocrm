@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ProspectForge — Collaborative Prospecting CRM",
-  description: "Lightweight, open-source-ready CRM for prospect research, qualification, collaboration, and pipeline management.",
+  title: "Revlo — Collaborative Outbound Prospecting & Sales CRM",
+  description: "Modern, open-source collaborative CRM engineered for outbound research teams, SDRs, and agency founders.",
 };
 
 export default function RootLayout({

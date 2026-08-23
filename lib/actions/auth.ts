@@ -76,16 +76,28 @@ export async function loginAction(formData: FormData) {
 }
 
 export async function demoLoginAction(roleType: "admin" | "researcher") {
-  const email =
+  const primaryEmail =
+    roleType === "admin"
+      ? "admin@revlo.demo"
+      : "researcher@revlo.demo";
+  const legacyEmail =
     roleType === "admin"
       ? "admin@prospectforge.demo"
       : "researcher@prospectforge.demo";
 
-  const userList = await db
+  let userList = await db
     .select()
     .from(users)
-    .where(eq(users.email, email))
+    .where(eq(users.email, primaryEmail))
     .limit(1);
+
+  if (userList.length === 0) {
+    userList = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, legacyEmail))
+      .limit(1);
+  }
 
   if (userList.length === 0) {
     return { error: "Demo user not found. Please run seed script." };

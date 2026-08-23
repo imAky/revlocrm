@@ -20,7 +20,7 @@ import { CAPABILITIES, DEFAULT_ROLE_PERMISSIONS } from "../permissions/capabilit
 import { calculateLeadScore } from "../scoring/lead-scorer";
 
 export async function seedDatabase() {
-  console.log("🌱 Starting ProspectForge Seed...");
+  console.log("🌱 Starting Revlo CRM Seed...");
 
   // 1. Seed Permissions
   console.log("Inserting permissions...");
@@ -92,14 +92,14 @@ export async function seedDatabase() {
   }
 
   // 4. Create Workspace
-  const workspaceId = "ws_prospectforge_default";
+  const workspaceId = "ws_revlo_default";
   console.log("Inserting workspace...");
   await db
     .insert(workspaces)
     .values({
       id: workspaceId,
-      name: "ProspectForge Growth Lab",
-      slug: "prospectforge",
+      name: "Revlo Growth Lab",
+      slug: "revlo",
     })
     .onConflictDoNothing();
 
@@ -158,13 +158,13 @@ export async function seedDatabase() {
     .values([
       {
         id: adminId,
-        email: "admin@prospectforge.demo",
+        email: "admin@revlo.demo",
         name: "Sarah Connor (Admin)",
         passwordHash: adminPassHash,
       },
       {
         id: researcherId,
-        email: "researcher@prospectforge.demo",
+        email: "researcher@revlo.demo",
         name: "Alex Miller (Researcher)",
         passwordHash: researcherPassHash,
       },
@@ -670,5 +670,5 @@ export async function seedDatabase() {
       .onConflictDoNothing();
   }
 
-  console.log("✅ ProspectForge database seeded successfully!");
+  console.log("✅ Revlo CRM database seeded successfully!");
 }

@@ -43,7 +43,7 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-base tracking-tight text-foreground">
-                ProspectForge
+                Revlo
               </span>
               <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 font-semibold">
                 CRM
@@ -59,7 +59,7 @@ export default function LandingPage() {
               5-Step Workflow
             </a>
             <a href="#comparison" className="hover:text-foreground transition-colors">
-              Why ProspectForge
+              Why Revlo
             </a>
             <a href="#architecture" className="hover:text-foreground transition-colors">
               Security & Stack
@@ -89,9 +89,9 @@ export default function LandingPage() {
           {/* Release Pill Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/20 dark:border-indigo-500/30 text-xs text-indigo-700 dark:text-indigo-300 shadow-sm backdrop-blur-md animate-in fade-in slide-in-from-top-3">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-semibold text-foreground">ProspectForge v1.0 Launch</span>
+            <span className="font-semibold text-foreground">Revlo CRM v1.0 Launch</span>
             <span className="text-indigo-400/60">•</span>
-            <span className="font-medium">Open Source Collaborative CRM</span>
+            <span className="font-medium">Open Source Outbound Platform</span>
           </div>
 
           {/* Main Hero Headline */}
@@ -109,15 +109,14 @@ export default function LandingPage() {
           {/* CTA Buttons */}
           <div className="flex flex-wrap items-center justify-center gap-3.5 pt-2">
             <Link href="/login">
-              <Button size="lg" variant="gradient" className="gap-2 font-semibold shadow-xl shadow-indigo-500/25 px-6">
-                <span>Explore Live Workspace</span>
+              <Button size="lg" variant="gradient" className="gap-2 text-sm font-semibold shadow-xl shadow-indigo-500/25 px-7">
+                <span>Try Live Demo Free</span>
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="https://github.com" target="_blank">
-              <Button size="lg" variant="outline" className="gap-2 font-medium px-6">
-                <Code2 className="h-4 w-4" />
-                <span>View on GitHub</span>
+            <Link href="/signup">
+              <Button size="lg" variant="outline" className="text-sm font-semibold px-6 border-border/80">
+                <span>Create Workspace</span>
               </Button>
             </Link>
           </div>
@@ -150,7 +149,7 @@ export default function LandingPage() {
                     <div className="h-3 w-3 rounded-full bg-emerald-500/80" />
                   </div>
                   <span className="font-mono text-[11px] text-foreground font-medium">
-                    prospectforge.app/workspace/pipeline
+                    app.revlocrm.com/workspace/pipeline
                   </span>
                   <Badge variant="outline" className="text-[10px] hidden sm:inline-block">
                     Live Demo Mode
@@ -410,15 +409,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Comparison Matrix: Why ProspectForge */}
+      {/* Comparison Matrix: Why Revlo */}
       <section id="comparison" className="py-20 sm:py-28 px-4 sm:px-6 border-t border-border/30 bg-muted/20">
         <div className="max-w-5xl mx-auto space-y-10">
           <div className="text-center space-y-3">
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-              Why Teams Choose ProspectForge
+              Why Teams Choose Revlo
             </h2>
             <p className="text-xs sm:text-sm text-muted-foreground">
-              Compare ProspectForge against messy Google Sheets and bloated enterprise CRMs.
+              Compare Revlo against messy Google Sheets and bloated enterprise CRMs.
             </p>
           </div>
 
@@ -426,7 +425,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-3 p-4 bg-muted/40 border-b border-border/30 text-xs font-bold text-foreground">
               <div>Capability</div>
               <div className="text-center text-muted-foreground">Spreadsheets</div>
-              <div className="text-center text-indigo-500 font-extrabold">ProspectForge</div>
+              <div className="text-center text-indigo-500 font-extrabold">Revlo CRM</div>
             </div>
 
             <div className="divide-y divide-border/20 text-xs">
@@ -459,7 +458,7 @@ export default function LandingPage() {
             Ready to supercharge your prospect pipeline?
           </h2>
           <p className="text-xs sm:text-base text-indigo-100 max-w-xl mx-auto leading-relaxed">
-            Experience ProspectForge in 1 click with pre-loaded demo personas or deploy to your own private infrastructure.
+            Experience Revlo in 1 click with pre-loaded demo personas or deploy to your own private infrastructure.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <Link href="/login">
@@ -483,7 +482,7 @@ export default function LandingPage() {
             <div className="h-6 w-6 rounded-lg bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
               <Sparkles className="h-3.5 w-3.5" />
             </div>
-            <span className="font-bold text-foreground">ProspectForge CRM</span>
+            <span className="font-bold text-foreground">Revlo CRM</span>
             <span>• Open Source MIT License</span>
           </div>
           <div className="flex items-center gap-6">
@@ -493,7 +492,7 @@ export default function LandingPage() {
             <Link href="/signup" className="hover:text-foreground transition-colors">
               New Workspace
             </Link>
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="hover:text-foreground transition-colors">
+            <a href="https://github.com/imAky/revlocrm" target="_blank" rel="noreferrer" className="hover:text-foreground transition-colors">
               GitHub Repo
             </a>
           </div>

@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ ProspectForge CRM
+# ⚡ Revlo CRM (`revlocrm`)
 
 ### Turn Outbound Prospect Research into a High-Converting Sales Pipeline
 
@@ -8,7 +8,7 @@
 [![React](https://img.shields.io/badge/React-19.2-blue?style=for-the-badge&logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4.0-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
-[![Drizzle ORM](https://img.shields.io/badge/Drizzle_ORM-0.38-C5F74F?style=for-the-badge&logo=drizzle)](https://orm.drizzle.team/)
+[![Drizzle ORM](https://img.shields.io/badge/Drizzle_ORM-0.45-C5F74F?style=for-the-badge&logo=drizzle)](https://orm.drizzle.team/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon_Serverless-4169E1?style=for-the-badge&logo=postgresql)](https://neon.tech/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
@@ -29,56 +29,60 @@
 - Visual stage volume distribution bars with real-time deal sizing.
 - Priority work queues highlighting urgent follow-ups and chronological team activity feeds.
 
-### ⚡ 2. Automated Heuristic Lead Scoring (0–100)
-- Multi-dimensional scoring engine evaluating:
-  - **Digital Footprint (30%)**: Website existence, mobile UX, CTA quality, quote booking flow, trust badges.
+### ⚡ 2. Automated Heuristic Lead Scoring (0–100) & Grading
+- Multi-dimensional deterministic scoring engine evaluating:
+  - **Digital Footprint (30%)**: Website existence, mobile UX audit, CTA quality, quote booking flow, trust badges.
   - **Commercial Qualification (35%)**: ICP fit, ability to pay, sales urgency, recurring potential, buying signals.
   - **Local Reputation (20%)**: Google star ratings (1.0–5.0) and review counts.
   - **Decision Maker Readiness (15%)**: Key stakeholder identified with direct phone/email.
 - Automatically assigns standardized tier grades: `A+`, `A`, `B`, `C`, and `D`.
 
-### 🗂️ 3. High-Density Spreadsheet Table & Card Views
-- Fast data table with live debounced search across names, domains, emails, and locations.
-- Multi-facet filtering by Niche/Industry, Pipeline Stage, and Lead Grade.
-- Multi-column sorting (Score, Deal Value, Date, Company Name).
-- Bulk actions: batch stage transitions and bulk user assignments.
-- **Mobile Card View Toggle**: Switch seamlessly between table and responsive card grids on smaller devices.
+### ⚡ 3. Dual-Mode Creation: Quick Add vs. Full Qualification
+- **Quick Add (5-Second Workflow)**: Rapidly input Company Name, Industry Niche, Location, Website/Google Maps URL, Phone/Email, Stage, Deal Value, and save in seconds with baseline score generation.
+- **Full Qualification Wizard (5 Steps)**: Deep 30+ field audit covering Business Identity, Digital Presence, ICP Commercial Fit, Primary Decision Maker, and Intelligence Notes.
 
-### 🏢 4. Comprehensive 30+ Field Prospect Profile
-- **Business Identity**: Company name, legal name, business category, niche, full street address, postal code, phone, public email, and operational status.
-- **Digital Audit**: Website quality, mobile UX audit, speed score (0–100 gauge), quote flow analysis, and social links (Facebook, Instagram, LinkedIn).
-- **Stakeholder Directory**: Multiple contacts per company with decision-maker flags, direct emails, phones, and LinkedIn URLs.
-- **Communication & Tasks**: Log calls, notes, proposals, and meetings paired with checkable task queues.
+### 🗂️ 4. Advanced Multi-Field Search & Facet Query Console
+- Target search selector: Query across **All Fields**, **Company Name**, **Industry / Niche**, **Location (City / State / Country)**, **Contact Phone / Email**, or **Opportunity / Signals**.
+- Collapsible multi-facet filter bar: Niche, Pipeline Stage, Grade (`A+`, `A`, `B`, `C`, `D`), ICP Fit (`HIGH`, `MEDIUM`, `LOW`), Minimum Score (≥60, ≥75, ≥85, ≥90), and Deal Size ($10k+, $20k+, $30k+).
+- Active filter badges with individual dismissal and one-click global clear.
+- Responsive **Table** and **Card Grid** view modes.
 
 ### 📈 5. 13-Stage Bidirectional Pipeline Kanban
 - Fluid horizontal Kanban board representing the complete sales lifecycle:
-  `Researching` ➔ `Identified` ➔ `Outreach Ready` ➔ `Contacted` ➔ `Follow-up Required` ➔ `Responded` ➔ `Discovery Booked` ➔ `Discovery Completed` ➔ `Proposal Sent` ➔ `In Negotiation` ➔ `Closed Won` ➔ `Closed Lost` ➔ `Nurture / Hold`.
+  `Researching` ➔ `Qualified` ➔ `Ready to Contact` ➔ `Contacted` ➔ `Engaged` ➔ `Discovery Scheduled` ➔ `Discovery Completed` ➔ `Proposal Sent` ➔ `Negotiation` ➔ `Closed Won` ➔ `Closed Lost` ➔ `Nurture` ➔ `Disqualified`.
 - **Bidirectional Stage Navigation**: Includes both **"Next →"** (advance) and **"← Back"** (rollback) controls to easily reverse accidental stage movements.
-- Direct stage dropdown jump on every card.
+- Direct stage dropdown selector on every card.
 
-### 🧩 6. Zero-Migration Dynamic Custom Fields
-- Define unlimited custom attributes (Text, Number, Currency, Date, Boolean, Select, Multi-select, URL, Email, Phone) per workspace.
+### 🏢 6. Comprehensive 30+ Field Company Intelligence Profile
+- **6-Tab Dedicated Workspace**: Overview & KPIs, Business Details, Digital Presence, Contacts & Stakeholders, Activity Timeline, and Follow-up Tasks.
+- **Multiple Stakeholders per Company**: Add multiple decision makers with email, direct phone, title, LinkedIn URL, and Decision Maker flag.
+- **Timeline Feed**: Log Calls, Emails, Meetings, Proposals, and internal research notes.
+- **Task Management**: Prioritized follow-up queue with due dates.
+
+### 🧩 7. Zero-Migration Dynamic Custom Fields
+- Define custom attributes (Text, Number, Currency, Date, Boolean, Select, Multi-select, URL, Email, Phone) per workspace.
 - Values stored dynamically without running SQL migrations.
 - In-place custom field editor directly inside the company profile view.
 
-### 🛡️ 7. Granular Capability-Based RBAC & Invitations
+### 🛡️ 8. Granular Capability-Based RBAC & Security
 - Multi-tenant workspace isolation.
 - Role presets: `Admin`, `Researcher`, and `Sales`.
 - Strict server-side permission assertions (`requirePermission()`) preventing unauthorized record deletions.
 - Customizable per-user capability overrides matrix.
 - Single-use, expiring invitation tokens with copy-to-clipboard generators.
 
-### 📥 8. CSV Import/Export & Smart Duplicate Detection
+### 📥 9. CSV Import/Export & Smart Duplicate Detection
 - Ingest large CSV files with automatic domain normalization, phone sanitization, and fuzzy company name matching.
 - Duplicate detection warning modals before inserting.
 - Safe CSV export with formula injection mitigation (`=`, `+`, `-`, `@` sanitization).
 
-### 📜 9. Immutable Append-Only Security Audit Trail
+### 📜 10. Immutable Append-Only Security Audit Trail
 - PostgreSQL-backed audit trail logging all logins, record creations, updates, deletions, stage movements, and permission adjustments with timestamp and user attribution.
 
-### 🌗 10. Site-Wide Light & Dark Theme Switcher
+### 🌗 11. Solid High-Contrast Light & Sleek Dark Theming
 - Persistent theme context using `localStorage` and dynamic class switching.
-- Animated Sun/Moon toggle buttons available in the landing page, topbar, and sidebar.
+- Solid opaque, crisp dialog surfaces in Light Mode with high elevation shadows and clear focus rings.
+- Sleek dark slate surfaces in Dark Mode with glowing indigo accents.
 
 ---
 
@@ -106,8 +110,8 @@
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/imAky/prospect-forge.git
-cd prospect-forge
+git clone https://github.com/imAky/revlocrm.git
+cd revlocrm
 ```
 
 ### 2. Install Dependencies
@@ -122,7 +126,7 @@ Create a `.env` file in the root directory:
 DATABASE_URL="postgresql://user:password@host/neondb?sslmode=require"
 
 # Secret key for encrypting JWT session cookies (at least 32 characters)
-SESSION_SECRET="prospectforge-super-secure-secret-key-32-chars-min"
+SESSION_SECRET="revlocrm-super-secure-production-ready-secret-key-32chars"
 ```
 
 ### 4. Push Database Schema
@@ -151,17 +155,17 @@ When testing locally with the seeded database, you can use the instant **1-Click
 
 | Persona | Email | Password | Role & Permissions |
 | :--- | :--- | :--- | :--- |
-| **👑 Admin (Sarah Connor)** | `admin@prospectforge.demo` | `admin123` | Full workspace control, delete permissions, role management |
-| **🔍 Researcher (Alex Miller)** | `researcher@prospectforge.demo` | `researcher123` | Create, research & edit prospects (Cannot delete records) |
+| **👑 Admin (Sarah Connor)** | `admin@revlo.demo` | `admin123` | Full workspace control, delete permissions, role management |
+| **🔍 Researcher (Alex Miller)** | `researcher@revlo.demo` | `researcher123` | Create, research & edit prospects (Cannot delete records) |
 
 ---
 
 ## 🏛️ System Architecture
 
-ProspectForge enforces strict multi-tenant workspace isolation across all 16 relational entities:
+Revlo CRM enforces strict multi-tenant workspace isolation across all 16 relational entities:
 
 ```
-workspaces (Tenant Boundary)
+workspaces (Tenant Boundary: Revlo Growth Lab)
  ├── memberships ── users (Sessions & Auth)
  ├── roles ── role_permissions ── permissions (RBAC)
  ├── user_permissions (Granular Capability Overrides)
@@ -192,7 +196,7 @@ All mutations are protected server-side in `lib/permissions/server-guards.ts`:
 ## 📂 Project Structure
 
 ```
-prospect-forge/
+revlocrm/
 ├── app/
 │   ├── (auth)/
 │   │   ├── login/page.tsx          # Login & 1-click persona switcher
@@ -218,7 +222,7 @@ prospect-forge/
 ├── components/
 │   ├── layout/                     # Sidebar, Topbar, WorkspaceShell
 │   ├── pipeline/                   # Kanban client & transition controls
-│   ├── prospects/                  # Table, Card view, Detail client, 30+ Field Wizard
+│   ├── prospects/                  # Table, Card view, Detail client, Quick Add & Full Wizard
 │   ├── ui/                         # Buttons, Badges, Modals, Tables, Tabs, Inputs
 │   ├── theme-provider.tsx          # React Theme context (Dark / Light)
 │   └── theme-toggle.tsx            # Animated Sun/Moon toggle button
@@ -230,9 +234,20 @@ prospect-forge/
 │   ├── scoring/                    # 0-100 Heuristic lead scoring engine
 │   └── utils/                      # Duplicate detection & CSV helpers
 ├── scripts/
-│   └── seed.ts                     # Database seed execution script
+│   ├── seed.ts                     # Database seed execution script
+│   └── test-functional-audit.ts    # Automated test suite
 ├── drizzle.config.ts               # Drizzle Kit CLI configuration
 └── README.md                       # Documentation
+```
+
+---
+
+## 🧪 Automated Testing
+
+Execute the full automated test suite verifying lead scoring formulas, multi-tenant database persistence, duplicate matching, and role capabilities:
+
+```bash
+npx tsx scripts/test-functional-audit.ts
 ```
 
 ---
