@@ -1,0 +1,48 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc & OS
+.DS_Store
+Thumbs.db
+*.pem
+
+# debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# environment variables & secrets
+.env
+.env*.local
+.env.production
+.env.development
+!.env.example
+
+# agent prompts & skills
+.agents/
+
+# temporary scripts
+scripts/rename-workspace.ts
+
+# vercel & build caches
+.vercel
+*.tsbuildinfo
+next-env.d.ts
