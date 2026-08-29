@@ -23,12 +23,39 @@ export default async function TasksPage() {
       prospectName: prospects.name,
       assignedToId: tasks.assignedToId,
       assignedToName: users.name,
+      createdAt: tasks.createdAt,
+      completedAt: tasks.completedAt,
     })
     .from(tasks)
     .leftJoin(prospects, eq(tasks.prospectId, prospects.id))
     .leftJoin(users, eq(tasks.assignedToId, users.id))
     .where(eq(tasks.workspaceId, ctx.workspaceId))
-    .orderBy(tasks.status, tasks.dueDate);
+    .orderBy(desc(tasks.createdAt));
+
+  const workspaceProspects = await db
+    .select({
+      id: prospects.id,
+      name: prospects.name,
+      category: prospects.category,
+      city: prospects.city,
+    })
+    .from(prospects)
+    .where(
+      and(
+        eq(prospects.workspaceId, ctx.workspaceId),
+        eq(prospects.isArchived, false)
+      )
+    )
+    .orderBy(prospects.name);
+
+  const workspaceUsers = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+    })
+    .from(users)
+    .orderBy(users.name);
 
   return (
     <div className="space-y-6">
@@ -43,7 +70,12 @@ export default async function TasksPage() {
         </div>
       </div>
 
-      <TasksClientList initialTasks={allTasks as any[]} currentUserId={ctx.userId} />
+      <TasksClientList
+        initialTasks={allTasks as any[]}
+        prospects={workspaceProspects}
+        users={workspaceUsers}
+        currentUserId={ctx.userId}
+      />
     </div>
   );
 }

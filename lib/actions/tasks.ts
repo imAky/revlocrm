@@ -20,7 +20,7 @@ export interface TaskInput {
 export async function createTaskAction(input: TaskInput) {
   const ctx = await requirePermission("tasks.create");
 
-  if (!input.title) {
+  if (!input.title || input.title.trim().length === 0) {
     return { error: "Task title is required" };
   }
 
@@ -33,8 +33,8 @@ export async function createTaskAction(input: TaskInput) {
     contactId: input.contactId || null,
     assignedToId: input.assignedToId || ctx.userId,
     createdById: ctx.userId,
-    title: input.title,
-    description: input.description,
+    title: input.title.trim(),
+    description: input.description?.trim() || null,
     dueDate: input.dueDate,
     priority: input.priority || "MEDIUM",
     status: input.status || "TODO",
@@ -47,7 +47,7 @@ export async function createTaskAction(input: TaskInput) {
     action: "task.created",
     entityType: "TASK",
     entityId: taskId,
-    afterData: { title: input.title, priority: input.priority },
+    afterData: { title: input.title.trim(), priority: input.priority, prospectId: input.prospectId },
   });
 
   if (input.prospectId) {
@@ -55,6 +55,7 @@ export async function createTaskAction(input: TaskInput) {
   }
   revalidatePath("/tasks");
   revalidatePath("/dashboard");
+  revalidatePath("/prospects");
 
   return { success: true, taskId };
 }
@@ -72,6 +73,8 @@ export async function updateTaskStatusAction(
 
   if (status === "COMPLETED") {
     updateData.completedAt = new Date();
+  } else {
+    updateData.completedAt = null;
   }
 
   await db
@@ -83,6 +86,53 @@ export async function updateTaskStatusAction(
 
   revalidatePath("/tasks");
   revalidatePath("/dashboard");
+
+  return { success: true };
+}
+
+export interface UpdateTaskInput {
+  id: string;
+  title?: string;
+  description?: string | null;
+  dueDate?: Date | null;
+  priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  status?: "TODO" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  assignedToId?: string | null;
+  prospectId?: string | null;
+}
+
+export async function updateTaskAction(input: UpdateTaskInput) {
+  const ctx = await requirePermission("tasks.edit");
+
+  const updateData: Record<string, unknown> = {
+    updatedAt: new Date(),
+  };
+
+  if (input.title !== undefined) updateData.title = input.title.trim();
+  if (input.description !== undefined) updateData.description = input.description?.trim() || null;
+  if (input.dueDate !== undefined) updateData.dueDate = input.dueDate;
+  if (input.priority !== undefined) updateData.priority = input.priority;
+  if (input.assignedToId !== undefined) updateData.assignedToId = input.assignedToId || null;
+  if (input.prospectId !== undefined) updateData.prospectId = input.prospectId || null;
+  if (input.status !== undefined) {
+    updateData.status = input.status;
+    if (input.status === "COMPLETED") {
+      updateData.completedAt = new Date();
+    } else {
+      updateData.completedAt = null;
+    }
+  }
+
+  await db
+    .update(tasks)
+    .set(updateData)
+    .where(and(eq(tasks.id, input.id), eq(tasks.workspaceId, ctx.workspaceId)));
+
+  revalidatePath("/tasks");
+  revalidatePath("/dashboard");
+  if (input.prospectId) {
+    revalidatePath(`/prospects/${input.prospectId}`);
+  }
 
   return { success: true };
 }
