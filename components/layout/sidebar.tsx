@@ -16,10 +16,11 @@ import {
   Sparkles,
   ChevronRight,
   X,
+  Layers,
+  Flame,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 interface NavItem {
   title: string;
@@ -57,22 +58,22 @@ export function SidebarContent({
   const pathname = usePathname();
 
   return (
-    <div className="flex flex-col justify-between h-full bg-card/90 backdrop-blur-xl">
+    <div className="flex flex-col justify-between h-full bg-white dark:bg-[#121218] text-foreground dark:text-zinc-100 select-none">
       <div>
         {/* Brand Header */}
-        <div className="h-16 flex items-center justify-between px-5 border-b border-border/40">
+        <div className="h-16 flex items-center justify-between px-5 border-b border-slate-200/90 dark:border-zinc-800/80">
           <Link href="/dashboard" onClick={onItemClick} className="flex items-center gap-2.5 group">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/25 group-hover:scale-105 transition-transform shrink-0">
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <div className="font-bold text-sm tracking-tight text-foreground flex items-center gap-1.5">
+              <div className="font-extrabold text-sm tracking-tight text-foreground flex items-center gap-1.5">
                 Revlo
-                <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25 font-bold">
                   CRM
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground truncate max-w-[130px]">
+              <p className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 truncate max-w-[130px]">
                 {workspaceName}
               </p>
             </div>
@@ -80,11 +81,11 @@ export function SidebarContent({
         </div>
 
         {/* Navigation Sections */}
-        <div className="p-3 space-y-6 overflow-y-auto max-h-[calc(100vh-140px)]">
+        <div className="p-3 space-y-6 overflow-y-auto max-h-[calc(100vh-140px)] scrollbar-none">
           {/* Main Prospecting Hub */}
           <div>
-            <div className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-              Prospecting
+            <div className="px-3 mb-2 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+              Prospecting & Outreach
             </div>
             <nav className="space-y-1">
               {mainNavItems.map((item) => {
@@ -99,25 +100,28 @@ export function SidebarContent({
                     href={item.href}
                     onClick={onItemClick}
                     className={cn(
-                      "flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all group",
+                      "flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all group",
                       isActive
-                        ? "bg-primary/15 text-primary font-semibold shadow-sm border border-primary/20"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                        ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-indigo-500/25 font-extrabold"
+                        : "text-slate-800 dark:text-zinc-200 hover:text-foreground hover:bg-slate-100 dark:hover:bg-zinc-800/80"
                     )}
                   >
                     <div className="flex items-center gap-2.5">
                       <Icon
                         className={cn(
-                          "h-4 w-4 transition-colors",
+                          "h-4 w-4 transition-colors shrink-0",
                           isActive
-                            ? "text-primary"
-                            : "text-muted-foreground group-hover:text-foreground"
+                            ? "text-white"
+                            : "text-slate-600 dark:text-zinc-300 group-hover:text-primary"
                         )}
                       />
-                      <span>{item.title}</span>
+                      <span className="tracking-tight">{item.title}</span>
                     </div>
                     {item.badge && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                      <Badge
+                        variant={isActive ? "secondary" : "default"}
+                        className="text-[10px] px-1.5 py-0 font-mono"
+                      >
                         {item.badge}
                       </Badge>
                     )}
@@ -129,7 +133,7 @@ export function SidebarContent({
 
           {/* Workspace Management */}
           <div>
-            <div className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            <div className="px-3 mb-2 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
               Workspace & Security
             </div>
             <nav className="space-y-1">
@@ -143,24 +147,29 @@ export function SidebarContent({
                     href={item.href}
                     onClick={onItemClick}
                     className={cn(
-                      "flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all group",
+                      "flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all group",
                       isActive
-                        ? "bg-primary/15 text-primary font-semibold shadow-sm border border-primary/20"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                        ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-indigo-500/25 font-extrabold"
+                        : "text-slate-800 dark:text-zinc-200 hover:text-foreground hover:bg-slate-100 dark:hover:bg-zinc-800/80"
                     )}
                   >
                     <div className="flex items-center gap-2.5">
                       <Icon
                         className={cn(
-                          "h-4 w-4 transition-colors",
+                          "h-4 w-4 transition-colors shrink-0",
                           isActive
-                            ? "text-primary"
-                            : "text-muted-foreground group-hover:text-foreground"
+                            ? "text-white"
+                            : "text-slate-600 dark:text-zinc-300 group-hover:text-primary"
                         )}
                       />
-                      <span>{item.title}</span>
+                      <span className="tracking-tight">{item.title}</span>
                     </div>
-                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
+                    <ChevronRight
+                      className={cn(
+                        "h-3 w-3 transition-opacity",
+                        isActive ? "text-white opacity-90" : "opacity-0 group-hover:opacity-100 text-slate-400"
+                      )}
+                    />
                   </Link>
                 );
               })}
@@ -170,26 +179,20 @@ export function SidebarContent({
       </div>
 
       {/* Role & Theme Footer */}
-      <div className="p-3 border-t border-border/40 space-y-2">
-        <div className="flex items-center justify-between p-2.5 rounded-lg bg-card/40 border border-border/30">
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[11px] font-medium text-muted-foreground">
-              Role:
-            </span>
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground">
-              {roleName}
+      <div className="p-3 border-t border-slate-200/90 dark:border-zinc-800/80 space-y-2 bg-slate-50/70 dark:bg-zinc-950/60">
+        <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-2xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0" />
+            <span className="text-[11px] font-bold text-foreground capitalize truncate">
+              {roleName} Session
             </span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <ThemeToggle />
-            <Badge
-              variant={roleName === "admin" ? "purple" : "info"}
-              className="text-[10px] px-1.5 py-0 uppercase"
-            >
-              {roleName === "admin" ? "Admin" : "Researcher"}
-            </Badge>
-          </div>
+          <Badge
+            variant={roleName === "admin" ? "purple" : "info"}
+            className="text-[9px] px-1.5 py-0 uppercase font-mono font-bold shrink-0"
+          >
+            {roleName}
+          </Badge>
         </div>
       </div>
     </div>
@@ -205,7 +208,7 @@ export function AppSidebar({
   workspaceName?: string;
 }) {
   return (
-    <aside className="hidden lg:flex w-64 border-r border-border/50 bg-card/60 backdrop-blur-xl flex-col justify-between shrink-0 h-screen sticky top-0">
+    <aside className="hidden lg:flex w-64 border-r border-slate-200/90 dark:border-zinc-800/80 bg-white dark:bg-[#121218] flex-col justify-between shrink-0 h-screen sticky top-0 shadow-2xs z-20">
       <SidebarContent roleName={roleName} workspaceName={workspaceName} />
     </aside>
   );
@@ -227,16 +230,18 @@ export function MobileSidebar({
 
   return (
     <div className="fixed inset-0 z-50 lg:hidden flex">
-      {/* Backdrop */}
+      {/* Dark Dimmer Backdrop */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity animate-in fade-in"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
         onClick={onClose}
       />
-      {/* Drawer */}
-      <div className="relative z-50 w-72 h-full bg-card border-r border-border/60 shadow-2xl flex flex-col animate-in slide-in-from-left duration-200">
+      {/* Slide Drawer */}
+      <div className="relative z-50 w-72 h-full bg-white dark:bg-[#121218] text-foreground dark:text-zinc-100 border-r border-slate-200 dark:border-zinc-800 shadow-2xl flex flex-col animate-in slide-in-from-left duration-200">
         <button
+          type="button"
           onClick={onClose}
-          className="absolute right-3 top-4 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+          className="absolute right-3.5 top-4 p-1.5 rounded-xl text-slate-600 dark:text-zinc-300 hover:text-foreground hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer border border-slate-200 dark:border-zinc-800 z-10"
+          title="Close Navigation"
         >
           <X className="h-4 w-4" />
         </button>

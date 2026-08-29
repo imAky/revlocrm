@@ -25,6 +25,8 @@ import {
   ArrowRight,
   Filter,
   Pencil,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -143,6 +145,10 @@ export function ProspectActivitiesTab({
   const [selectedType, setSelectedType] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Copy Feedback States
+  const [copiedActId, setCopiedActId] = useState<string | null>(null);
+  const [copiedAll, setCopiedAll] = useState(false);
+
   // Create Modal States
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -200,6 +206,75 @@ export function ProspectActivitiesTab({
       return true;
     });
   }, [activitiesList, selectedType, searchQuery]);
+
+  // Copy Individual Activity Formatted for AI
+  const handleCopyActivity = async (act: ActivityItem) => {
+    const dateStr = new Date(act.performedAt).toLocaleString("en-US", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+    const contact = contactsList.find((c) => c.id === act.contactId);
+    const contactStr = contact
+      ? `Contact: ${contact.firstName} ${contact.lastName}${contact.jobTitle ? ` (${contact.jobTitle})` : ""}\n`
+      : "";
+
+    const text = `[ACTIVITY: ${act.type}]
+Subject / Title: ${act.title}
+Date & Time: ${dateStr}
+Logged By: ${act.userName || "Team Member"}
+${contactStr}${act.description ? `Description / Notes:\n${act.description}\n` : ""}${act.outcome ? `Outcome: ${act.outcome}\n` : ""}${act.nextAction ? `Next Action: ${act.nextAction}\n` : ""}`.trim();
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedActId(act.id);
+      setTimeout(() => setCopiedActId(null), 2000);
+    } catch {
+      alert("Failed to copy activity");
+    }
+  };
+
+  // Copy All Filtered Activities Formatted for AI
+  const handleCopyFilteredTimeline = async () => {
+    if (filteredActivities.length === 0) return;
+
+    const label =
+      selectedType === "EMAIL"
+        ? "EMAIL OUTREACH HISTORY"
+        : selectedType === "PHONE"
+        ? "PHONE CALL LOGS"
+        : selectedType === "MEETING"
+        ? "MEETING NOTES & SUMMARIES"
+        : "COMMUNICATION & ACTIVITY TIMELINE";
+
+    const entries = filteredActivities.map((act, idx) => {
+      const dateStr = new Date(act.performedAt).toLocaleString("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+      const contact = contactsList.find((c) => c.id === act.contactId);
+      const contactStr = contact
+        ? `Contact: ${contact.firstName} ${contact.lastName}${contact.jobTitle ? ` (${contact.jobTitle})` : ""}\n`
+        : "";
+
+      return `---
+[${idx + 1}] [${act.type}] ${act.title}
+Date: ${dateStr}
+Logged By: ${act.userName || "Team Member"}
+${contactStr}${act.description ? `Details / Transcript:\n${act.description}\n` : ""}${act.outcome ? `Outcome: ${act.outcome}\n` : ""}${act.nextAction ? `Next Step: ${act.nextAction}\n` : ""}`.trim();
+    });
+
+    const fullSummary = `### ${label}: ${prospectName} (${filteredActivities.length} Entries)
+
+${entries.join("\n\n")}`;
+
+    try {
+      await navigator.clipboard.writeText(fullSummary);
+      setCopiedAll(true);
+      setTimeout(() => setCopiedAll(false), 2000);
+    } catch {
+      alert("Failed to copy timeline");
+    }
+  };
 
   // Keyboard Navigation for Lightbox Gallery
   const handleNextImage = useCallback(() => {
@@ -478,15 +553,45 @@ export function ProspectActivitiesTab({
             </p>
           </div>
 
-          <Button
-            size="sm"
-            variant="gradient"
-            onClick={() => setIsAddOpen(true)}
-            className="gap-1.5 text-xs font-semibold rounded-xl shadow-sm self-start sm:self-auto shrink-0"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Log Activity</span>
-          </Button>
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            {filteredActivities.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCopyFilteredTimeline}
+                className="gap-1.5 text-xs font-medium rounded-xl border-border/80 cursor-pointer shadow-2xs"
+                title="Copy filtered activities as clean text for AI prompt context"
+              >
+                {copiedAll ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Copied for AI!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" />
+                    <span>
+                      {selectedType === "EMAIL"
+                        ? "Copy Emails for AI"
+                        : selectedType === "PHONE"
+                        ? "Copy Calls for AI"
+                        : "Copy Logs for AI"}
+                    </span>
+                  </>
+                )}
+              </Button>
+            )}
+
+            <Button
+              size="sm"
+              variant="gradient"
+              onClick={() => setIsAddOpen(true)}
+              className="gap-1.5 text-xs font-semibold rounded-xl shadow-sm cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Log Activity</span>
+            </Button>
+          </div>
         </div>
 
         {/* Filters Bar */}
@@ -560,7 +665,7 @@ export function ProspectActivitiesTab({
               size="sm"
               variant="outline"
               onClick={() => setIsAddOpen(true)}
-              className="text-xs gap-1.5 rounded-xl"
+              className="text-xs gap-1.5 rounded-xl cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>Log First Activity</span>
@@ -571,6 +676,7 @@ export function ProspectActivitiesTab({
             const config = getTypeConfig(act.type);
             const Icon = config.icon;
             const attachments = parseAttachmentUrls(act.attachmentUrl);
+            const isItemCopied = copiedActId === act.id;
 
             return (
               <div
@@ -621,13 +727,27 @@ export function ProspectActivitiesTab({
                     </div>
                   </div>
 
-                  {/* Actions: Edit (Pencil) and Delete Buttons */}
+                  {/* Actions: Copy, Edit (Pencil), and Delete Buttons */}
                   <div className="flex items-center gap-1 shrink-0">
                     <Button
                       size="sm"
                       variant="ghost"
+                      onClick={() => handleCopyActivity(act)}
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-lg cursor-pointer"
+                      title="Copy Activity for AI Context"
+                    >
+                      {isItemCopied ? (
+                        <Check className="h-3.5 w-3.5 text-emerald-400" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={() => handleOpenEditModal(act)}
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg cursor-pointer"
                       title="Edit Activity"
                     >
                       <Pencil className="h-3.5 w-3.5" />
@@ -637,7 +757,7 @@ export function ProspectActivitiesTab({
                       size="sm"
                       variant="ghost"
                       onClick={() => handleDeleteActivity(act.id, act.title)}
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer"
                       title="Delete Activity"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -852,7 +972,7 @@ export function ProspectActivitiesTab({
                       <button
                         type="button"
                         onClick={() => setFormImages((prev) => prev.filter((_, i) => i !== idx))}
-                        className="absolute top-1 right-1 p-0.5 rounded-full bg-black/70 text-white hover:bg-destructive"
+                        className="absolute top-1 right-1 p-0.5 rounded-full bg-black/70 text-white hover:bg-destructive cursor-pointer"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -867,7 +987,7 @@ export function ProspectActivitiesTab({
                 type="button"
                 variant="outline"
                 onClick={() => setIsAddOpen(false)}
-                className="rounded-xl text-xs"
+                className="rounded-xl text-xs cursor-pointer"
               >
                 Cancel
               </Button>
@@ -875,7 +995,7 @@ export function ProspectActivitiesTab({
                 type="submit"
                 variant="gradient"
                 disabled={isSubmitting}
-                className="rounded-xl text-xs font-semibold gap-1.5"
+                className="rounded-xl text-xs font-semibold gap-1.5 cursor-pointer"
               >
                 <CheckCheck className="h-4 w-4" />
                 <span>{isSubmitting ? "Saving..." : "Save Activity"}</span>
@@ -1076,7 +1196,7 @@ export function ProspectActivitiesTab({
                   type="button"
                   variant="outline"
                   onClick={() => setEditingActivity(null)}
-                  className="rounded-xl text-xs"
+                  className="rounded-xl text-xs cursor-pointer"
                 >
                   Cancel
                 </Button>
@@ -1084,7 +1204,7 @@ export function ProspectActivitiesTab({
                   type="submit"
                   variant="gradient"
                   disabled={isEditSubmitting}
-                  className="rounded-xl text-xs font-semibold gap-1.5"
+                  className="rounded-xl text-xs font-semibold gap-1.5 cursor-pointer"
                 >
                   <CheckCheck className="h-4 w-4" />
                   <span>{isEditSubmitting ? "Saving..." : "Save Changes"}</span>
@@ -1132,7 +1252,7 @@ export function ProspectActivitiesTab({
               <button
                 type="button"
                 onClick={() => setLightboxGallery(null)}
-                className="p-2 rounded-xl bg-white/10 hover:bg-destructive text-white transition-colors"
+                className="p-2 rounded-xl bg-white/10 hover:bg-destructive text-white transition-colors cursor-pointer"
                 title="Close"
               >
                 <X className="h-4 w-4" />
@@ -1149,7 +1269,7 @@ export function ProspectActivitiesTab({
               <button
                 type="button"
                 onClick={handlePrevImage}
-                className="absolute left-2 sm:left-4 z-10 p-2.5 sm:p-3 rounded-2xl bg-black/60 hover:bg-black/90 text-white border border-white/20 hover:scale-105 transition-all shadow-xl"
+                className="absolute left-2 sm:left-4 z-10 p-2.5 sm:p-3 rounded-2xl bg-black/60 hover:bg-black/90 text-white border border-white/20 hover:scale-105 transition-all shadow-xl cursor-pointer"
                 title="Previous Image (←)"
               >
                 <ChevronLeft className="h-6 w-6" />
@@ -1166,7 +1286,7 @@ export function ProspectActivitiesTab({
               <button
                 type="button"
                 onClick={handleNextImage}
-                className="absolute right-2 sm:right-4 z-10 p-2.5 sm:p-3 rounded-2xl bg-black/60 hover:bg-black/90 text-white border border-white/20 hover:scale-105 transition-all shadow-xl"
+                className="absolute right-2 sm:right-4 z-10 p-2.5 sm:p-3 rounded-2xl bg-black/60 hover:bg-black/90 text-white border border-white/20 hover:scale-105 transition-all shadow-xl cursor-pointer"
                 title="Next Image (→)"
               >
                 <ChevronRight className="h-6 w-6" />
@@ -1187,7 +1307,7 @@ export function ProspectActivitiesTab({
                   onClick={() =>
                     setLightboxGallery((prev) => (prev ? { ...prev, activeIndex: idx } : null))
                   }
-                  className={`relative rounded-lg overflow-hidden h-12 w-12 border-2 shrink-0 transition-all ${
+                  className={`relative rounded-lg overflow-hidden h-12 w-12 border-2 shrink-0 transition-all cursor-pointer ${
                     idx === lightboxGallery.activeIndex
                       ? "border-primary scale-105 ring-2 ring-primary/40"
                       : "border-transparent opacity-60 hover:opacity-100"

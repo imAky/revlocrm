@@ -49,6 +49,7 @@ import {
   bulkAssignAction,
 } from "@/lib/actions/prospects";
 import { ProspectCreateModal } from "./prospect-create-modal";
+import { ProspectAiDossierModal } from "./prospect-ai-dossier-modal";
 
 export interface ProspectItem {
   id: string;
@@ -119,6 +120,7 @@ export function ProspectsTableClient({
   const [bulkStageId, setBulkStageId] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [dossierProspect, setDossierProspect] = useState<any | null>(null);
 
   // Distinct Filter Options
   const niches = useMemo(() => {
@@ -799,16 +801,27 @@ export function ProspectsTableClient({
                     <span className="font-bold text-foreground">
                       {p.dealValue ? `$${Number(p.dealValue).toLocaleString()}` : "—"}
                     </span>
-                    <Link href={`/prospects/${p.id}`}>
+                    <div className="flex items-center gap-1.5">
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="h-7 px-2.5 text-xs font-semibold gap-1 rounded-xl border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground transition-all shadow-2xs"
+                        variant="ghost"
+                        onClick={() => setDossierProspect(p)}
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl"
+                        title="AI Prompt Summary & Dossier (.MD)"
                       >
-                        <span>View</span>
-                        <ChevronRight className="h-3 w-3" />
+                        <Sparkles className="h-3.5 w-3.5" />
                       </Button>
-                    </Link>
+                      <Link href={`/prospects/${p.id}`}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2.5 text-xs font-semibold gap-1 rounded-xl border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground transition-all shadow-2xs"
+                        >
+                          <span>View</span>
+                          <ChevronRight className="h-3 w-3" />
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1012,6 +1025,15 @@ export function ProspectsTableClient({
                       {/* Distinct Actions Button */}
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setDossierProspect(p)}
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 cursor-pointer rounded-xl"
+                            title="AI Prompt Summary & Dossier (.MD)"
+                          >
+                            <Sparkles className="h-3.5 w-3.5" />
+                          </Button>
                           <Link href={`/prospects/${p.id}`}>
                             <Button
                               size="sm"
@@ -1053,6 +1075,16 @@ export function ProspectsTableClient({
         existingNiches={niches}
         existingCountries={countries}
       />
+
+      {/* Quick AI Dossier Modal from Table/Card view */}
+      {dossierProspect && (
+        <ProspectAiDossierModal
+          isOpen={Boolean(dossierProspect)}
+          onClose={() => setDossierProspect(null)}
+          prospect={dossierProspect}
+          stageName={dossierProspect.stageName || stages.find((s) => s.id === dossierProspect.stageId)?.name}
+        />
+      )}
     </div>
   );
 }

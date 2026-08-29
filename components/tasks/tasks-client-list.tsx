@@ -268,12 +268,24 @@ export function TasksClientList({
   // Base Tasks isolated strictly per Active Tab
   const tabBaseTasks = useMemo(() => {
     if (activeMainTab === "MY_DAY") {
-      return initialTasks.filter((t) => !t.prospectId);
+      return initialTasks.filter(
+        (t) =>
+          !t.prospectId &&
+          (t.createdById === currentUserId ||
+            t.assignedToId === currentUserId ||
+            (!t.createdById && !t.assignedToId))
+      );
     } else if (activeMainTab === "WORKSPACE") {
       return initialTasks.filter((t) => Boolean(t.prospectId));
     }
-    return initialTasks;
-  }, [initialTasks, activeMainTab]);
+    return initialTasks.filter(
+      (t) =>
+        Boolean(t.prospectId) ||
+        t.createdById === currentUserId ||
+        t.assignedToId === currentUserId ||
+        (!t.createdById && !t.assignedToId)
+    );
+  }, [initialTasks, activeMainTab, currentUserId]);
 
   // Dynamic Stats Calculations for the Active Tab Scope
   const stats = useMemo(() => {
@@ -298,13 +310,23 @@ export function TasksClientList({
 
     // Overall global counts for navigation badges
     const globalPersonalCount = initialTasks.filter(
-      (t) => !t.prospectId && t.status !== "COMPLETED"
+      (t) =>
+        !t.prospectId &&
+        t.status !== "COMPLETED" &&
+        (t.createdById === currentUserId ||
+          t.assignedToId === currentUserId ||
+          (!t.createdById && !t.assignedToId))
     ).length;
     const globalProspectCount = initialTasks.filter(
       (t) => Boolean(t.prospectId) && t.status !== "COMPLETED"
     ).length;
     const globalTotalCount = initialTasks.filter(
-      (t) => t.status !== "COMPLETED"
+      (t) =>
+        t.status !== "COMPLETED" &&
+        (Boolean(t.prospectId) ||
+          t.createdById === currentUserId ||
+          t.assignedToId === currentUserId ||
+          (!t.createdById && !t.assignedToId))
     ).length;
 
     return {
