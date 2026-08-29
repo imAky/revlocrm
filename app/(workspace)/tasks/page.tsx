@@ -44,7 +44,7 @@ export default async function TasksPage() {
     .from(taskLogs)
     .leftJoin(users, eq(taskLogs.userId, users.id))
     .where(eq(taskLogs.workspaceId, ctx.workspaceId))
-    .orderBy(asc(taskLogs.createdAt));
+    .orderBy(desc(taskLogs.createdAt));
 
   const workspaceProspects = await db
     .select({

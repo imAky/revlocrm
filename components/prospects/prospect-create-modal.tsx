@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Sparkles,
   Building2,
@@ -19,6 +19,9 @@ import {
   Zap,
   Layers,
   AlertTriangle,
+  Plus,
+  X,
+  Check,
 } from "lucide-react";
 import {
   Dialog,
@@ -34,23 +37,126 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { createProspectAction } from "@/lib/actions/prospects";
 
+/**
+ * Format string with proper Title Casing while preserving standard business acronyms
+ */
+export function toProperTitleCase(str: string): string {
+  if (!str) return "";
+  const specialAcronyms: Record<string, string> = {
+    HVAC: "HVAC",
+    SAAS: "B2B SaaS",
+    "B2B SAAS": "B2B SaaS",
+    B2B: "B2B",
+    SEO: "SEO",
+    USA: "USA",
+    UK: "UK",
+    UAE: "UAE",
+    CRM: "CRM",
+    LLC: "LLC",
+    INC: "Inc.",
+    CORP: "Corp.",
+  };
+
+  return str
+    .trim()
+    .split(/\s+/)
+    .map((word) => {
+      if (word.length === 0) return "";
+      const upper = word.toUpperCase();
+      if (specialAcronyms[upper]) {
+        return specialAcronyms[upper];
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
+const DEFAULT_NICHES = [
+  "Roofing & Construction",
+  "HVAC & Climate Control",
+  "Plumbing & Water Systems",
+  "Electrical & Solar",
+  "General Contractors & Remodeling",
+  "Pest Control & Exterminators",
+  "Landscaping & Tree Services",
+  "Auto Repair & Detailing",
+  "Professional Services (Legal, Accounting)",
+  "Healthcare & Dental",
+  "Real Estate & Property Management",
+  "Hospitality & Restaurants",
+  "Ecommerce & Retail",
+  "B2B SaaS / Tech",
+];
+
+const DEFAULT_COUNTRIES = [
+  "United States",
+  "United Kingdom",
+  "Canada",
+  "Australia",
+  "Germany",
+  "France",
+  "United Arab Emirates",
+  "India",
+  "Singapore",
+  "Netherlands",
+  "Switzerland",
+  "International",
+];
+
 export function ProspectCreateModal({
   open,
   onOpenChange,
   stages,
   workspaceUsers,
+  existingNiches = [],
+  existingCountries = [],
   customFields = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   stages: { id: string; name: string; color?: string }[];
   workspaceUsers: { id: string; name: string }[];
+  existingNiches?: string[];
+  existingCountries?: string[];
   customFields?: any[];
 }) {
   const [creationMode, setCreationMode] = useState<"quick" | "full">("quick");
   const [activeTab, setActiveTab] = useState("business");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Dynamic Custom Options stored locally
+  const [customNiches, setCustomNiches] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      return JSON.parse(localStorage.getItem("prospect_custom_niches") || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  const [customCountries, setCustomCountries] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      return JSON.parse(localStorage.getItem("prospect_custom_countries") || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  const nicheOptions = useMemo(() => {
+    return Array.from(new Set([...customNiches, ...(existingNiches || []), ...DEFAULT_NICHES]));
+  }, [customNiches, existingNiches]);
+
+  const countryOptions = useMemo(() => {
+    return Array.from(new Set([...customCountries, ...(existingCountries || []), ...DEFAULT_COUNTRIES]));
+  }, [customCountries, existingCountries]);
+
+  // Inline Custom Add State
+  const [isAddingNiche, setIsAddingNiche] = useState(false);
+  const [newNicheInput, setNewNicheInput] = useState("");
+  const [isAddingCountry, setIsAddingCountry] = useState(false);
+  const [newCountryInput, setNewCountryInput] = useState("");
 
   // Complete Spec Form State
   const [formData, setFormData] = useState({
@@ -93,7 +199,6 @@ export function ProspectCreateModal({
     contactFirstName: "",
     contactLastName: "",
     contactTitle: "Founder & Managing Partner",
-    contactRole: "Owner",
     contactEmail: "",
     contactPhone: "",
     contactLinkedIn: "",
@@ -120,6 +225,44 @@ export function ProspectCreateModal({
     researchNotes: "",
   });
 
+  // Handle adding new custom niche with Title Casing
+  const handleAddNewNiche = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const formatted = toProperTitleCase(newNicheInput);
+    if (!formatted) return;
+
+    setCustomNiches((prev) => {
+      const next = Array.from(new Set([formatted, ...prev]));
+      try {
+        localStorage.setItem("prospect_custom_niches", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+
+    setFormData((prev) => ({ ...prev, niche: formatted, category: formatted }));
+    setNewNicheInput("");
+    setIsAddingNiche(false);
+  };
+
+  // Handle adding new custom country with Title Casing
+  const handleAddNewCountry = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const formatted = toProperTitleCase(newCountryInput);
+    if (!formatted) return;
+
+    setCustomCountries((prev) => {
+      const next = Array.from(new Set([formatted, ...prev]));
+      try {
+        localStorage.setItem("prospect_custom_countries", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+
+    setFormData((prev) => ({ ...prev, country: formatted }));
+    setNewCountryInput("");
+    setIsAddingCountry(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
@@ -134,7 +277,7 @@ export function ProspectCreateModal({
       await createProspectAction({
         name: formData.name.trim(),
         legalName: formData.legalName.trim() || undefined,
-        category: formData.category.trim() || undefined,
+        category: formData.category.trim() || formData.niche || undefined,
         niche: formData.niche || "General Business",
         website: formData.website.trim() || undefined,
         googleMapsUrl: formData.googleMapsUrl.trim() || undefined,
@@ -148,34 +291,18 @@ export function ProspectCreateModal({
         businessStatus: formData.businessStatus || "OPERATIONAL",
 
         googleRating: formData.googleRating ? formData.googleRating : undefined,
-        reviewCount: formData.reviewCount ? Number(formData.reviewCount) : 0,
+        reviewCount: Number(formData.reviewCount) || 0,
         googleProfileUrl: formData.googleProfileUrl.trim() || undefined,
-        websiteExists: formData.websiteExists,
         websiteQuality: formData.websiteQuality || undefined,
         mobileUx: formData.mobileUx || undefined,
         ctaQuality: formData.ctaQuality || undefined,
         quoteBookingFlow: formData.quoteBookingFlow || undefined,
         trustSignals: formData.trustSignals || undefined,
         seoVisibility: formData.seoVisibility || undefined,
-        speedScore: formData.speedScore ? Number(formData.speedScore) : undefined,
+        speedScore: Number(formData.speedScore) || undefined,
         facebookUrl: formData.facebookUrl.trim() || undefined,
         instagramUrl: formData.instagramUrl.trim() || undefined,
         linkedInUrl: formData.linkedInUrl.trim() || undefined,
-
-        icpFit: formData.icpFit || "HIGH",
-        abilityToPay: formData.abilityToPay || "HIGH",
-        urgency: formData.urgency || "HIGH",
-        recurringPotential: formData.recurringPotential || "MEDIUM",
-        buyingSignals: formData.buyingSignals || undefined,
-        mainOpportunity: formData.mainOpportunity || undefined,
-        leadSource: formData.leadSource || "Direct Research",
-        dealValue: formData.dealValue ? formData.dealValue : "0",
-
-        stageId: formData.stageId || stages[0]?.id,
-        outreachStatus: formData.outreachStatus || "READY",
-        assignedToId: formData.assignedToId || undefined,
-        notes: formData.notes.trim() || undefined,
-        researchNotes: formData.researchNotes.trim() || undefined,
 
         contactFirstName: formData.contactFirstName.trim() || undefined,
         contactLastName: formData.contactLastName.trim() || undefined,
@@ -183,8 +310,23 @@ export function ProspectCreateModal({
         contactEmail: formData.contactEmail.trim() || undefined,
         contactPhone: formData.contactPhone.trim() || undefined,
         contactLinkedIn: formData.contactLinkedIn.trim() || undefined,
-        contactPreferredChannel: formData.contactPreferredChannel || "EMAIL",
+        contactPreferredChannel: formData.contactPreferredChannel || undefined,
         contactIsDecisionMaker: formData.contactIsDecisionMaker,
+
+        icpFit: formData.icpFit || undefined,
+        abilityToPay: formData.abilityToPay || undefined,
+        urgency: formData.urgency || undefined,
+        recurringPotential: formData.recurringPotential || undefined,
+        buyingSignals: formData.buyingSignals || undefined,
+        mainOpportunity: formData.mainOpportunity.trim() || undefined,
+        leadSource: formData.leadSource || undefined,
+        dealValue: formData.dealValue ? formData.dealValue : undefined,
+
+        stageId: formData.stageId || undefined,
+        outreachStatus: formData.outreachStatus || undefined,
+        assignedToId: formData.assignedToId || undefined,
+        notes: formData.notes.trim() || undefined,
+        researchNotes: formData.researchNotes.trim() || undefined,
       });
 
       onOpenChange(false);
@@ -224,7 +366,6 @@ export function ProspectCreateModal({
         contactFirstName: "",
         contactLastName: "",
         contactTitle: "Founder & Managing Partner",
-        contactRole: "Owner",
         contactEmail: "",
         contactPhone: "",
         contactLinkedIn: "",
@@ -255,38 +396,38 @@ export function ProspectCreateModal({
   };
 
   const selectClassName =
-    "w-full h-9 px-3 rounded-lg bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-border text-xs text-slate-900 dark:text-foreground shadow-2xs focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-colors";
+    "w-full h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors cursor-pointer";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl bg-white dark:bg-[#121218] text-slate-900 dark:text-slate-100 border border-slate-200/90 dark:border-border/60 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.25)] dark:shadow-[0_25px_70px_-15px_rgba(0,0,0,0.85)]">
+      <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-3xl bg-white dark:bg-[#121218] text-foreground dark:text-zinc-100 border border-slate-200/90 dark:border-zinc-800 shadow-2xl">
         <DialogHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80 dark:border-border/40">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/60">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
+              <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
-                <DialogTitle className="text-base sm:text-lg font-bold text-slate-950 dark:text-white">
+                <DialogTitle className="text-base sm:text-lg font-bold text-foreground dark:text-zinc-100">
                   {creationMode === "quick" ? "Quick Add Prospect" : "Full Prospect Qualification"}
                 </DialogTitle>
-                <DialogDescription className="text-xs text-slate-600 dark:text-slate-400">
+                <DialogDescription className="text-xs text-muted-foreground">
                   {creationMode === "quick"
-                    ? "Add a company in 5 seconds with essential location & contact data."
+                    ? "Add a company in seconds with dynamic industry & country categorization."
                     : "Comprehensive 5-step digital audit, ICP commercial fit, and decision maker."}
                 </DialogDescription>
               </div>
             </div>
 
             {/* Mode Switcher Toggle */}
-            <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-zinc-800/70 border border-slate-200/80 dark:border-border/40 shrink-0 self-start sm:self-auto shadow-2xs">
+            <div className="flex items-center p-1 rounded-2xl bg-muted/60 dark:bg-zinc-950/80 border border-border/80 shrink-0 self-start sm:self-auto shadow-2xs">
               <button
                 type="button"
                 onClick={() => setCreationMode("quick")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                   creationMode === "quick"
-                    ? "bg-white dark:bg-card text-slate-900 dark:text-white shadow-xs"
-                    : "text-slate-600 dark:text-muted-foreground hover:text-slate-900 dark:hover:text-white"
+                    ? "bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100 shadow-xs border border-border/60"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Zap className="h-3.5 w-3.5 text-amber-500" />
@@ -295,10 +436,10 @@ export function ProspectCreateModal({
               <button
                 type="button"
                 onClick={() => setCreationMode("full")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                   creationMode === "full"
-                    ? "bg-white dark:bg-card text-slate-900 dark:text-white shadow-xs"
-                    : "text-slate-600 dark:text-muted-foreground hover:text-slate-900 dark:hover:text-white"
+                    ? "bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100 shadow-xs border border-border/60"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Layers className="h-3.5 w-3.5 text-indigo-500" />
@@ -309,7 +450,7 @@ export function ProspectCreateModal({
         </DialogHeader>
 
         {error && (
-          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium flex items-center gap-2">
+          <div className="p-3 rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -317,13 +458,13 @@ export function ProspectCreateModal({
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-1">
           {/* ========================================================= */}
-          {/* QUICK ADD MODE (Fast 5-second workflow)                    */}
+          {/* QUICK ADD MODE (Fast workflow with dynamic custom fields) */}
           {/* ========================================================= */}
           {creationMode === "quick" ? (
             <div className="space-y-4 pt-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
                 <div className="sm:col-span-2">
-                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">
+                  <label className="block mb-1.5 font-semibold text-foreground">
                     Company Name <span className="text-destructive">*</span>
                   </label>
                   <Input
@@ -331,118 +472,244 @@ export function ProspectCreateModal({
                     placeholder="e.g. Apex Roofing & Solar Austin"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="font-medium"
+                    className="font-medium bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                   />
                 </div>
 
+                {/* Dynamic Industry / Niche */}
                 <div>
-                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">
-                    Industry / Niche <span className="text-destructive">*</span>
-                  </label>
-                  <select
-                    value={formData.niche}
-                    onChange={(e) => setFormData({ ...formData, niche: e.target.value })}
-                    className={selectClassName}
-                  >
-                    <option value="Roofing & Construction">Roofing & Construction</option>
-                    <option value="HVAC & Climate Control">HVAC & Climate Control</option>
-                    <option value="Plumbing & Water Systems">Plumbing & Water Systems</option>
-                    <option value="Electrical & Solar">Electrical & Solar</option>
-                    <option value="General Contractors & Remodeling">General Contractors & Remodeling</option>
-                    <option value="Pest Control & Exterminators">Pest Control & Exterminators</option>
-                    <option value="Landscaping & Tree Services">Landscaping & Tree Services</option>
-                    <option value="Auto Repair & Detailing">Auto Repair & Detailing</option>
-                    <option value="Professional Services">Professional Services (Legal, Accounting)</option>
-                    <option value="Healthcare & Dental">Healthcare & Dental</option>
-                    <option value="Ecommerce & Retail">Ecommerce & Retail</option>
-                    <option value="B2B SaaS / Tech">B2B SaaS / Tech</option>
-                    <option value="Other">Other Vertical</option>
-                  </select>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="font-semibold text-foreground">
+                      Industry / Niche <span className="text-destructive">*</span>
+                    </label>
+                    {!isAddingNiche && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingNiche(true);
+                          setNewNicheInput("");
+                        }}
+                        className="text-[11px] text-primary hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
+                      >
+                        <Plus className="h-3 w-3" /> Add New
+                      </button>
+                    )}
+                  </div>
+
+                  {isAddingNiche ? (
+                    <div className="space-y-1.5 p-2 rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/20 animate-in fade-in">
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          autoFocus
+                          placeholder="Type industry (e.g. Fintech, Solar)..."
+                          value={newNicheInput}
+                          onChange={(e) => setNewNicheInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddNewNiche();
+                            }
+                          }}
+                          className="h-8 text-xs bg-background rounded-lg"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="gradient"
+                          onClick={() => handleAddNewNiche()}
+                          className="h-8 px-2.5 text-xs font-semibold rounded-lg shrink-0"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setIsAddingNiche(false)}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-lg shrink-0"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">Auto-formats to Title Casing and saves to list.</p>
+                    </div>
+                  ) : (
+                    <select
+                      value={formData.niche}
+                      onChange={(e) => {
+                        if (e.target.value === "__ADD_NEW__") {
+                          setIsAddingNiche(true);
+                          setNewNicheInput("");
+                        } else {
+                          setFormData({ ...formData, niche: e.target.value, category: e.target.value });
+                        }
+                      }}
+                      className={selectClassName}
+                    >
+                      {nicheOptions.map((n) => (
+                        <option key={n} value={n} className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">
+                          {n}
+                        </option>
+                      ))}
+                      <option value="__ADD_NEW__" className="bg-card dark:bg-zinc-900 text-primary font-semibold">
+                        ➕ + Add Custom Industry / Niche...
+                      </option>
+                    </select>
+                  )}
+                </div>
+
+                {/* Dynamic Country */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="font-semibold text-foreground">
+                      Country <span className="text-destructive">*</span>
+                    </label>
+                    {!isAddingCountry && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingCountry(true);
+                          setNewCountryInput("");
+                        }}
+                        className="text-[11px] text-primary hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
+                      >
+                        <Plus className="h-3 w-3" /> Add New
+                      </button>
+                    )}
+                  </div>
+
+                  {isAddingCountry ? (
+                    <div className="space-y-1.5 p-2 rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/20 animate-in fade-in">
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          autoFocus
+                          placeholder="Type country name..."
+                          value={newCountryInput}
+                          onChange={(e) => setNewCountryInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddNewCountry();
+                            }
+                          }}
+                          className="h-8 text-xs bg-background rounded-lg"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="gradient"
+                          onClick={() => handleAddNewCountry()}
+                          className="h-8 px-2.5 text-xs font-semibold rounded-lg shrink-0"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setIsAddingCountry(false)}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-lg shrink-0"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">Auto-formats to Title Casing and saves to list.</p>
+                    </div>
+                  ) : (
+                    <select
+                      value={formData.country}
+                      onChange={(e) => {
+                        if (e.target.value === "__ADD_NEW__") {
+                          setIsAddingCountry(true);
+                          setNewCountryInput("");
+                        } else {
+                          setFormData({ ...formData, country: e.target.value });
+                        }
+                      }}
+                      className={selectClassName}
+                    >
+                      {countryOptions.map((c) => (
+                        <option key={c} value={c} className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">
+                          {c}
+                        </option>
+                      ))}
+                      <option value="__ADD_NEW__" className="bg-card dark:bg-zinc-900 text-primary font-semibold">
+                        ➕ + Add Custom Country...
+                      </option>
+                    </select>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">
-                    Country <span className="text-destructive">*</span>
-                  </label>
-                  <select
-                    value={formData.country}
-                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                    className={selectClassName}
-                  >
-                    <option value="United States">United States</option>
-                    <option value="United Kingdom">United Kingdom</option>
-                    <option value="Canada">Canada</option>
-                    <option value="Australia">Australia</option>
-                    <option value="Germany">Germany</option>
-                    <option value="France">France</option>
-                    <option value="International">Other International</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">City</label>
+                  <label className="block mb-1.5 font-semibold text-foreground">City</label>
                   <Input
                     placeholder="e.g. Austin"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                   />
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">State / Province</label>
+                  <label className="block mb-1.5 font-semibold text-foreground">State / Province</label>
                   <Input
                     placeholder="e.g. Texas"
                     value={formData.state}
                     onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                    className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                   />
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Website URL</label>
+                  <label className="block mb-1.5 font-semibold text-foreground">Website URL</label>
                   <Input
                     placeholder="https://example.com"
                     value={formData.website}
                     onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                    className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                   />
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Google Maps URL</label>
+                  <label className="block mb-1.5 font-semibold text-foreground">Google Maps URL</label>
                   <Input
                     placeholder="https://maps.google.com/..."
                     value={formData.googleMapsUrl}
                     onChange={(e) => setFormData({ ...formData, googleMapsUrl: e.target.value })}
+                    className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                   />
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Main Business Phone</label>
+                  <label className="block mb-1.5 font-semibold text-foreground">Main Business Phone</label>
                   <Input
                     placeholder="+1 (512) 555-0199"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                   />
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Public Email</label>
+                  <label className="block mb-1.5 font-semibold text-foreground">Public Email</label>
                   <Input
                     type="email"
                     placeholder="contact@company.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                   />
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Initial Pipeline Stage</label>
+                  <label className="block mb-1.5 font-semibold text-foreground">Initial Pipeline Stage</label>
                   <select
                     value={formData.stageId}
                     onChange={(e) => setFormData({ ...formData, stageId: e.target.value })}
                     className={selectClassName}
                   >
                     {stages.map((s) => (
-                      <option key={s.id} value={s.id}>
+                      <option key={s.id} value={s.id} className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">
                         {s.name}
                       </option>
                     ))}
@@ -450,58 +717,42 @@ export function ProspectCreateModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Estimated Deal Value ($)</label>
-                  <Input
-                    type="number"
-                    placeholder="15000"
-                    value={formData.dealValue}
-                    onChange={(e) => setFormData({ ...formData, dealValue: e.target.value })}
-                  />
+                  <label className="block mb-1.5 font-semibold text-foreground">Assign To Researcher / Rep</label>
+                  <select
+                    value={formData.assignedToId}
+                    onChange={(e) => setFormData({ ...formData, assignedToId: e.target.value })}
+                    className={selectClassName}
+                  >
+                    {workspaceUsers.map((u) => (
+                      <option key={u.id} value={u.id} className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">
+                        {u.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
-
-              <DialogFooter className="pt-3 border-t border-slate-200/80 dark:border-border/40">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => onOpenChange(false)}
-                  className="text-xs"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="gradient"
-                  disabled={isSubmitting}
-                  className="text-xs font-semibold gap-1.5 shadow-md shadow-indigo-500/20"
-                >
-                  <Zap className="h-3.5 w-3.5" />
-                  <span>{isSubmitting ? "Creating..." : "⚡ Quick Save Prospect"}</span>
-                </Button>
-              </DialogFooter>
             </div>
           ) : (
             /* ========================================================= */
-            /* FULL 5-STEP QUALIFICATION WIZARD                           */
+            /* FULL 5-STEP AUDIT QUALIFICATION WORKFLOW                  */
             /* ========================================================= */
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              {/* Responsive Tab Bar */}
-              <div className="overflow-x-auto pb-1">
-                <TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-5 text-xs bg-slate-100 dark:bg-zinc-800/70 p-1 border border-slate-200/80 dark:border-border/40">
-                  <TabsTrigger value="business" className="text-xs whitespace-nowrap">
-                    1. Business Identity
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 pt-1">
+              <div className="overflow-x-auto pb-1 scrollbar-none">
+                <TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-5 text-xs bg-muted/60 dark:bg-zinc-950/80 p-1 rounded-2xl border border-border/80">
+                  <TabsTrigger value="business" className="text-xs whitespace-nowrap rounded-xl font-semibold">
+                    1. Identity
                   </TabsTrigger>
-                  <TabsTrigger value="digital" className="text-xs whitespace-nowrap">
+                  <TabsTrigger value="digital" className="text-xs whitespace-nowrap rounded-xl font-semibold">
                     2. Digital Audit
                   </TabsTrigger>
-                  <TabsTrigger value="qualification" className="text-xs whitespace-nowrap">
-                    3. Commercial & ICP
+                  <TabsTrigger value="qualification" className="text-xs whitespace-nowrap rounded-xl font-semibold">
+                    3. Commercial
                   </TabsTrigger>
-                  <TabsTrigger value="contact" className="text-xs whitespace-nowrap">
-                    4. Decision Maker
+                  <TabsTrigger value="contact" className="text-xs whitespace-nowrap rounded-xl font-semibold">
+                    4. Contact
                   </TabsTrigger>
-                  <TabsTrigger value="notes" className="text-xs whitespace-nowrap">
-                    5. Notes & Research
+                  <TabsTrigger value="notes" className="text-xs whitespace-nowrap rounded-xl font-semibold">
+                    5. Workflow
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -510,7 +761,7 @@ export function ProspectCreateModal({
               <TabsContent value="business" className="space-y-4 pt-2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
                   <div className="sm:col-span-2">
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">
+                    <label className="block mb-1.5 font-semibold text-foreground">
                       Company Name <span className="text-destructive">*</span>
                     </label>
                     <Input
@@ -518,300 +769,308 @@ export function ProspectCreateModal({
                       placeholder="e.g. Northstar Roofing & Solar Demo"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Legal / Entity Name</label>
+                    <label className="block mb-1.5 font-semibold text-foreground">Legal / Entity Name</label>
                     <Input
                       placeholder="e.g. Northstar Construction Group LLC"
                       value={formData.legalName}
                       onChange={(e) => setFormData({ ...formData, legalName: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
 
+                  {/* Industry with dynamic add */}
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Industry / Niche</label>
-                    <select
-                      value={formData.niche}
-                      onChange={(e) => setFormData({ ...formData, niche: e.target.value })}
-                      className={selectClassName}
-                    >
-                      <option value="Roofing & Construction">Roofing & Construction</option>
-                      <option value="HVAC & Climate Control">HVAC & Climate Control</option>
-                      <option value="Plumbing & Water Systems">Plumbing & Water Systems</option>
-                      <option value="Electrical & Solar">Electrical & Solar</option>
-                      <option value="General Contractors & Remodeling">General Contractors & Remodeling</option>
-                      <option value="Pest Control & Exterminators">Pest Control & Exterminators</option>
-                      <option value="Landscaping & Tree Services">Landscaping & Tree Services</option>
-                      <option value="Auto Repair & Detailing">Auto Repair & Detailing</option>
-                      <option value="Professional Services">Professional Services</option>
-                      <option value="Healthcare & Dental">Healthcare & Dental</option>
-                      <option value="Ecommerce & Retail">Ecommerce & Retail</option>
-                      <option value="B2B SaaS / Tech">B2B SaaS / Tech</option>
-                      <option value="Other">Other Vertical</option>
-                    </select>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="font-semibold text-foreground">Industry / Niche</label>
+                      {!isAddingNiche && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAddingNiche(true);
+                            setNewNicheInput("");
+                          }}
+                          className="text-[11px] text-primary hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
+                        >
+                          <Plus className="h-3 w-3" /> Add New
+                        </button>
+                      )}
+                    </div>
+
+                    {isAddingNiche ? (
+                      <div className="space-y-1.5 p-2 rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/20 animate-in fade-in">
+                        <div className="flex items-center gap-1.5">
+                          <Input
+                            autoFocus
+                            placeholder="Type industry..."
+                            value={newNicheInput}
+                            onChange={(e) => setNewNicheInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddNewNiche();
+                              }
+                            }}
+                            className="h-8 text-xs bg-background rounded-lg"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="gradient"
+                            onClick={() => handleAddNewNiche()}
+                            className="h-8 px-2.5 text-xs font-semibold rounded-lg shrink-0"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setIsAddingNiche(false)}
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-lg shrink-0"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <select
+                        value={formData.niche}
+                        onChange={(e) => {
+                          if (e.target.value === "__ADD_NEW__") {
+                            setIsAddingNiche(true);
+                            setNewNicheInput("");
+                          } else {
+                            setFormData({ ...formData, niche: e.target.value, category: e.target.value });
+                          }
+                        }}
+                        className={selectClassName}
+                      >
+                        {nicheOptions.map((n) => (
+                          <option key={n} value={n} className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">
+                            {n}
+                          </option>
+                        ))}
+                        <option value="__ADD_NEW__" className="bg-card dark:bg-zinc-900 text-primary font-semibold">
+                          ➕ + Add Custom Industry / Niche...
+                        </option>
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Country with dynamic add */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="font-semibold text-foreground">Country</label>
+                      {!isAddingCountry && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAddingCountry(true);
+                            setNewCountryInput("");
+                          }}
+                          className="text-[11px] text-primary hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
+                        >
+                          <Plus className="h-3 w-3" /> Add New
+                        </button>
+                      )}
+                    </div>
+
+                    {isAddingCountry ? (
+                      <div className="space-y-1.5 p-2 rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/20 animate-in fade-in">
+                        <div className="flex items-center gap-1.5">
+                          <Input
+                            autoFocus
+                            placeholder="Type country name..."
+                            value={newCountryInput}
+                            onChange={(e) => setNewCountryInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddNewCountry();
+                              }
+                            }}
+                            className="h-8 text-xs bg-background rounded-lg"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="gradient"
+                            onClick={() => handleAddNewCountry()}
+                            className="h-8 px-2.5 text-xs font-semibold rounded-lg shrink-0"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setIsAddingCountry(false)}
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-lg shrink-0"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <select
+                        value={formData.country}
+                        onChange={(e) => {
+                          if (e.target.value === "__ADD_NEW__") {
+                            setIsAddingCountry(true);
+                            setNewCountryInput("");
+                          } else {
+                            setFormData({ ...formData, country: e.target.value });
+                          }
+                        }}
+                        className={selectClassName}
+                      >
+                        {countryOptions.map((c) => (
+                          <option key={c} value={c} className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">
+                            {c}
+                          </option>
+                        ))}
+                        <option value="__ADD_NEW__" className="bg-card dark:bg-zinc-900 text-primary font-semibold">
+                          ➕ + Add Custom Country...
+                        </option>
+                      </select>
+                    )}
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Country</label>
-                    <select
-                      value={formData.country}
-                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                      className={selectClassName}
-                    >
-                      <option value="United States">United States</option>
-                      <option value="United Kingdom">United Kingdom</option>
-                      <option value="Canada">Canada</option>
-                      <option value="Australia">Australia</option>
-                      <option value="Germany">Germany</option>
-                      <option value="France">France</option>
-                      <option value="International">Other International</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">City</label>
+                    <label className="block mb-1.5 font-semibold text-foreground">City</label>
                     <Input
                       placeholder="e.g. Austin"
                       value={formData.city}
                       onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">State / Province</label>
+                    <label className="block mb-1.5 font-semibold text-foreground">State / Region</label>
                     <Input
                       placeholder="e.g. Texas"
                       value={formData.state}
                       onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Street Address</label>
+                    <label className="block mb-1.5 font-semibold text-foreground">Street Address</label>
                     <Input
-                      placeholder="e.g. 7800 Shoal Creek Blvd #120"
+                      placeholder="e.g. 410 Congress Ave, Suite 120"
                       value={formData.address}
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Postal / ZIP Code</label>
-                    <Input
-                      placeholder="78757"
-                      value={formData.postalCode}
-                      onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Main Business Phone</label>
+                    <label className="block mb-1.5 font-semibold text-foreground">Business Phone</label>
                     <Input
                       placeholder="+1 (512) 555-0199"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Public Email</label>
+                    <label className="block mb-1.5 font-semibold text-foreground">General / Public Email</label>
                     <Input
                       type="email"
-                      placeholder="info@northstar.demo"
+                      placeholder="info@northstar.com"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Business Status</label>
-                    <select
-                      value={formData.businessStatus}
-                      onChange={(e) => setFormData({ ...formData, businessStatus: e.target.value })}
-                      className={selectClassName}
-                    >
-                      <option value="OPERATIONAL">Active / Operational</option>
-                      <option value="TEMPORARILY_CLOSED">Temporarily Closed</option>
-                      <option value="PERMANENTLY_CLOSED">Permanently Closed</option>
-                      <option value="UNKNOWN">Unknown</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Website URL</label>
-                    <Input
-                      placeholder="https://northstarroofing.demo"
-                      value={formData.website}
-                      onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Google Maps URL</label>
-                    <Input
-                      placeholder="https://maps.google.com/..."
-                      value={formData.googleMapsUrl}
-                      onChange={(e) => setFormData({ ...formData, googleMapsUrl: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end pt-3">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setActiveTab("digital")}
-                    className="gap-1.5 text-xs font-medium"
-                  >
-                    <span>Next: Digital Audit</span>
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
                 </div>
               </TabsContent>
 
-              {/* TAB 2: Digital Audit & Local Footprint */}
+              {/* TAB 2: Digital Presence & Google Audit */}
               <TabsContent value="digital" className="space-y-4 pt-2">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Google Rating (0-5)</label>
+                    <label className="block mb-1.5 font-semibold text-foreground">Google Star Rating</label>
                     <Input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      max="5"
-                      placeholder="4.8"
+                      placeholder="e.g. 4.8"
                       value={formData.googleRating}
                       onChange={(e) => setFormData({ ...formData, googleRating: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Google Review Count</label>
+                    <label className="block mb-1.5 font-semibold text-foreground">Review Count</label>
                     <Input
                       type="number"
                       placeholder="45"
                       value={formData.reviewCount}
                       onChange={(e) => setFormData({ ...formData, reviewCount: Number(e.target.value) })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Speed Score (0-100)</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      placeholder="65"
-                      value={formData.speedScore}
-                      onChange={(e) => setFormData({ ...formData, speedScore: Number(e.target.value) })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Website Quality</label>
+                    <label className="block mb-1.5 font-semibold text-foreground">Website Quality</label>
                     <select
                       value={formData.websiteQuality}
                       onChange={(e) => setFormData({ ...formData, websiteQuality: e.target.value })}
                       className={selectClassName}
                     >
-                      <option value="EXCELLENT">Excellent (Modern & Fast)</option>
-                      <option value="GOOD">Good (Functional)</option>
-                      <option value="FAIR">Fair (Dated Design)</option>
-                      <option value="POOR">Poor (Broken / Slow)</option>
+                      <option value="EXCELLENT" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Excellent (Modern, Fast, High Converting)</option>
+                      <option value="GOOD" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Good (Decent Design)</option>
+                      <option value="FAIR" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Fair (Outdated, Needs Refresh)</option>
+                      <option value="POOR" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Poor (Broken Layouts, Slow)</option>
+                      <option value="MISSING" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Missing / No Website</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Mobile UX Audit</label>
+                    <label className="block mb-1.5 font-semibold text-foreground">Mobile Responsiveness / UX</label>
                     <select
                       value={formData.mobileUx}
                       onChange={(e) => setFormData({ ...formData, mobileUx: e.target.value })}
                       className={selectClassName}
                     >
-                      <option value="EXCELLENT">Excellent Mobile Flow</option>
-                      <option value="GOOD">Good</option>
-                      <option value="FAIR">Fair</option>
-                      <option value="POOR">Poor (Non-responsive/Cut off)</option>
+                      <option value="EXCELLENT" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Excellent Mobile UX</option>
+                      <option value="AVERAGE" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Average Mobile UX</option>
+                      <option value="POOR" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Poor / Hard to Read on Mobile</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">CTA / Conversion Flow</label>
+                    <label className="block mb-1.5 font-semibold text-foreground">Call-to-Action Quality</label>
                     <select
                       value={formData.ctaQuality}
                       onChange={(e) => setFormData({ ...formData, ctaQuality: e.target.value })}
                       className={selectClassName}
                     >
-                      <option value="STRONG">Strong Sticky CTA</option>
-                      <option value="GOOD">Good</option>
-                      <option value="AVERAGE">Average</option>
-                      <option value="POOR">Poor / Missing Phone Header</option>
+                      <option value="STRONG" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Strong (Clear Phone / Form)</option>
+                      <option value="AVERAGE" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Average</option>
+                      <option value="POOR" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Poor / Hidden CTA</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Quote / Booking System</label>
+                    <label className="block mb-1.5 font-semibold text-foreground">Instant Booking / Quote Flow</label>
                     <select
                       value={formData.quoteBookingFlow}
                       onChange={(e) => setFormData({ ...formData, quoteBookingFlow: e.target.value })}
                       className={selectClassName}
                     >
-                      <option value="EXCELLENT">Interactive Multi-step Funnel</option>
-                      <option value="GOOD">Standard Contact Form</option>
-                      <option value="MISSING">Missing / Mailto Link Only</option>
+                      <option value="EXISTS" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Automated Calendar / Instant Flow</option>
+                      <option value="BASIC" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Basic Contact Form Only</option>
+                      <option value="MISSING" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Missing (Opportunity for SaaS Tool)</option>
                     </select>
                   </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Trust Signals & Badges</label>
-                    <select
-                      value={formData.trustSignals}
-                      onChange={(e) => setFormData({ ...formData, trustSignals: e.target.value })}
-                      className={selectClassName}
-                    >
-                      <option value="STRONG">Strong (BBB, GAF Master, 100+ Reviews)</option>
-                      <option value="AVERAGE">Average Badges</option>
-                      <option value="WEAK">Weak / No Badges</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Local Search Presence</label>
-                    <select
-                      value={formData.seoVisibility}
-                      onChange={(e) => setFormData({ ...formData, seoVisibility: e.target.value })}
-                      className={selectClassName}
-                    >
-                      <option value="STRONG">Top 3 Map Pack</option>
-                      <option value="AVERAGE">First Page Organic</option>
-                      <option value="WEAK">Page 2+ or Low Visibility</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex justify-between pt-3">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setActiveTab("business")}
-                    className="text-xs font-medium"
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setActiveTab("qualification")}
-                    className="gap-1.5 text-xs font-medium"
-                  >
-                    <span>Next: Commercial & ICP</span>
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
                 </div>
               </TabsContent>
 
@@ -819,272 +1078,200 @@ export function ProspectCreateModal({
               <TabsContent value="qualification" className="space-y-4 pt-2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">ICP Fit</label>
+                    <label className="block mb-1.5 font-semibold text-foreground">ICP Commercial Fit</label>
                     <select
                       value={formData.icpFit}
                       onChange={(e) => setFormData({ ...formData, icpFit: e.target.value })}
                       className={selectClassName}
                     >
-                      <option value="HIGH">High Fit (Ideal Client)</option>
-                      <option value="MEDIUM">Medium Fit</option>
-                      <option value="LOW">Low Fit</option>
+                      <option value="HIGH" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">High (Prime Target / High Ticket Services)</option>
+                      <option value="MEDIUM" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Medium Fit</option>
+                      <option value="LOW" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Low Fit</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Ability to Pay</label>
-                    <select
-                      value={formData.abilityToPay}
-                      onChange={(e) => setFormData({ ...formData, abilityToPay: e.target.value })}
-                      className={selectClassName}
-                    >
-                      <option value="HIGH">High (Strong Revenue / Ad Budget)</option>
-                      <option value="MEDIUM">Medium</option>
-                      <option value="LOW">Low / Bootstrapped</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Sales Urgency</label>
-                    <select
-                      value={formData.urgency}
-                      onChange={(e) => setFormData({ ...formData, urgency: e.target.value })}
-                      className={selectClassName}
-                    >
-                      <option value="HIGH">High (Immediate Need / Hiring)</option>
-                      <option value="MEDIUM">Medium</option>
-                      <option value="LOW">Low (Passive)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Recurring Revenue Potential</label>
-                    <select
-                      value={formData.recurringPotential}
-                      onChange={(e) => setFormData({ ...formData, recurringPotential: e.target.value })}
-                      className={selectClassName}
-                    >
-                      <option value="HIGH">High (Monthly Retainer)</option>
-                      <option value="MEDIUM">Medium</option>
-                      <option value="LOW">Low (One-off)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Target Deal Value ($)</label>
+                    <label className="block mb-1.5 font-semibold text-foreground">Estimated Deal Size ($)</label>
                     <Input
                       type="number"
                       placeholder="15000"
                       value={formData.dealValue}
                       onChange={(e) => setFormData({ ...formData, dealValue: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
 
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Initial Pipeline Stage</label>
+                    <label className="block mb-1.5 font-semibold text-foreground">Urgency Level</label>
+                    <select
+                      value={formData.urgency}
+                      onChange={(e) => setFormData({ ...formData, urgency: e.target.value })}
+                      className={selectClassName}
+                    >
+                      <option value="HIGH" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">High Urgency</option>
+                      <option value="MEDIUM" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Medium Urgency</option>
+                      <option value="LOW" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Low Urgency</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Estimated Ability to Pay</label>
+                    <select
+                      value={formData.abilityToPay}
+                      onChange={(e) => setFormData({ ...formData, abilityToPay: e.target.value })}
+                      className={selectClassName}
+                    >
+                      <option value="HIGH" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">High ($1M+ Gross Revenue)</option>
+                      <option value="MEDIUM" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Medium ($300k - $1M)</option>
+                      <option value="LOW" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Low (&lt; $300k)</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block mb-1.5 font-semibold text-foreground">Main Identified Opportunity</label>
+                    <Input
+                      placeholder="e.g. Website revamp + automated lead scheduling + Google Maps SEO"
+                      value={formData.mainOpportunity}
+                      onChange={(e) => setFormData({ ...formData, mainOpportunity: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* TAB 4: Primary Decision Maker */}
+              <TabsContent value="contact" className="space-y-4 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">First Name</label>
+                    <Input
+                      placeholder="e.g. John"
+                      value={formData.contactFirstName}
+                      onChange={(e) => setFormData({ ...formData, contactFirstName: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Last Name</label>
+                    <Input
+                      placeholder="e.g. Northstar"
+                      value={formData.contactLastName}
+                      onChange={(e) => setFormData({ ...formData, contactLastName: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Job Title</label>
+                    <Input
+                      placeholder="e.g. Founder & Managing Director"
+                      value={formData.contactTitle}
+                      onChange={(e) => setFormData({ ...formData, contactTitle: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Direct Email</label>
+                    <Input
+                      type="email"
+                      placeholder="john@northstar.com"
+                      value={formData.contactEmail}
+                      onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Direct Mobile Phone</label>
+                    <Input
+                      placeholder="+1 (512) 888-0123"
+                      value={formData.contactPhone}
+                      onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">LinkedIn Profile URL</label>
+                    <Input
+                      placeholder="https://linkedin.com/in/john-northstar"
+                      value={formData.contactLinkedIn}
+                      onChange={(e) => setFormData({ ...formData, contactLinkedIn: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* TAB 5: Workflow, Notes & Research */}
+              <TabsContent value="notes" className="space-y-4 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Initial Pipeline Stage</label>
                     <select
                       value={formData.stageId}
                       onChange={(e) => setFormData({ ...formData, stageId: e.target.value })}
                       className={selectClassName}
                     >
                       {stages.map((s) => (
-                        <option key={s.id} value={s.id}>
+                        <option key={s.id} value={s.id} className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">
                           {s.name}
                         </option>
                       ))}
                     </select>
                   </div>
 
-                  <div className="sm:col-span-2">
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Main Commercial Opportunity</label>
-                    <Input
-                      placeholder="e.g. Modern booking funnel + Local Services ads to double commercial leads"
-                      value={formData.mainOpportunity}
-                      onChange={(e) => setFormData({ ...formData, mainOpportunity: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Observed Buying Signals</label>
-                    <Input
-                      placeholder="e.g. Recently opened 2nd warehouse; hiring for 4 commercial sales reps"
-                      value={formData.buyingSignals}
-                      onChange={(e) => setFormData({ ...formData, buyingSignals: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-between pt-3">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setActiveTab("digital")}
-                    className="text-xs font-medium"
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setActiveTab("contact")}
-                    className="gap-1.5 text-xs font-medium"
-                  >
-                    <span>Next: Decision Maker</span>
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </TabsContent>
-
-              {/* TAB 4: Primary Decision Maker */}
-              <TabsContent value="contact" className="space-y-4 pt-2">
-                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-muted/30 border border-slate-200/80 dark:border-border/40 text-slate-600 dark:text-muted-foreground text-xs">
-                  Optional: Add key stakeholder or decision maker to automatically establish outreach readiness.
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
                   <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">First Name</label>
-                    <Input
-                      placeholder="e.g. Marcus"
-                      value={formData.contactFirstName}
-                      onChange={(e) => setFormData({ ...formData, contactFirstName: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Last Name</label>
-                    <Input
-                      placeholder="e.g. Vance"
-                      value={formData.contactLastName}
-                      onChange={(e) => setFormData({ ...formData, contactLastName: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Job Title / Role</label>
-                    <Input
-                      placeholder="e.g. Founder & Managing Partner"
-                      value={formData.contactTitle}
-                      onChange={(e) => setFormData({ ...formData, contactTitle: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Direct Email</label>
-                    <Input
-                      type="email"
-                      placeholder="marcus@company.com"
-                      value={formData.contactEmail}
-                      onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Direct Phone</label>
-                    <Input
-                      placeholder="+1 (512) 555-0143"
-                      value={formData.contactPhone}
-                      onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">LinkedIn Profile URL</label>
-                    <Input
-                      placeholder="https://linkedin.com/in/..."
-                      value={formData.contactLinkedIn}
-                      onChange={(e) => setFormData({ ...formData, contactLinkedIn: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-between pt-3">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setActiveTab("qualification")}
-                    className="text-xs font-medium"
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setActiveTab("notes")}
-                    className="gap-1.5 text-xs font-medium"
-                  >
-                    <span>Next: Notes & Research</span>
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </TabsContent>
-
-              {/* TAB 5: Notes & Research */}
-              <TabsContent value="notes" className="space-y-4 pt-2">
-                <div className="space-y-3 text-xs">
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Assigned Researcher / Sales Rep</label>
+                    <label className="block mb-1.5 font-semibold text-foreground">Assign To Researcher / Rep</label>
                     <select
                       value={formData.assignedToId}
                       onChange={(e) => setFormData({ ...formData, assignedToId: e.target.value })}
                       className={selectClassName}
                     >
-                      <option value="">Unassigned</option>
                       {workspaceUsers.map((u) => (
-                        <option key={u.id} value={u.id}>
+                        <option key={u.id} value={u.id} className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">
                           {u.name}
                         </option>
                       ))}
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Business & Opportunity Notes</label>
+                  <div className="sm:col-span-2">
+                    <label className="block mb-1.5 font-semibold text-foreground">Internal Research & Outreach Notes</label>
                     <Textarea
                       rows={3}
-                      placeholder="Context on current marketing tech stack, owner background, or recent achievements..."
-                      value={formData.notes}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-slate-800 dark:text-slate-200">Research & Strategic Insights</label>
-                    <Textarea
-                      rows={3}
-                      placeholder="Strategic talking points, competitors in the area, custom pitch angles..."
+                      placeholder="Add key insights found during qualification research, pain points, or talking points..."
                       value={formData.researchNotes}
                       onChange={(e) => setFormData({ ...formData, researchNotes: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
                 </div>
-
-                <DialogFooter className="pt-3 border-t border-slate-200/80 dark:border-border/40">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setActiveTab("contact")}
-                    className="text-xs"
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="gradient"
-                    disabled={isSubmitting}
-                    className="text-xs font-semibold gap-1.5 shadow-md shadow-indigo-500/20"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span>{isSubmitting ? "Saving Prospect..." : "Save & Qualify Prospect"}</span>
-                  </Button>
-                </DialogFooter>
               </TabsContent>
             </Tabs>
           )}
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t border-border/60">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="text-xs rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="gradient"
+              disabled={isSubmitting}
+              className="text-xs font-semibold gap-1.5 shadow-md shadow-primary/20 rounded-xl"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              <span>{isSubmitting ? "Saving Prospect..." : "Save Prospect"}</span>
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

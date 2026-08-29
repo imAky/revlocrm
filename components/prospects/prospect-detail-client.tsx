@@ -42,37 +42,43 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { updateProspectAction, deleteProspectAction, archiveProspectAction } from "@/lib/actions/prospects";
 import { createContactAction, deleteContactAction } from "@/lib/actions/contacts";
 import { createActivityAction } from "@/lib/actions/activities";
-import { createTaskAction, updateTaskStatusAction } from "@/lib/actions/tasks";
+import { createTaskAction, updateTaskStatusAction, TaskLogItem } from "@/lib/actions/tasks";
 import { saveCustomFieldValueAction } from "@/lib/actions/custom-fields";
+import { ProspectTasksTab } from "./prospect-tasks-tab";
+import { ProspectActivitiesTab } from "./prospect-activities-tab";
 
 export function ProspectDetailClient({
   prospect,
   contactsList,
   activitiesList,
   tasksList,
+  taskLogsList = [],
   customFieldsList,
   customFieldValuesMap,
   stages,
   workspaceUsers,
+  currentUserId = "",
   canDelete = false,
 }: {
   prospect: any;
   contactsList: any[];
   activitiesList: any[];
   tasksList: any[];
+  taskLogsList?: TaskLogItem[];
   customFieldsList: any[];
   customFieldValuesMap: Record<string, string>;
   stages: any[];
   workspaceUsers: any[];
+  currentUserId?: string;
   canDelete?: boolean;
 }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
+  const [editTab, setEditTab] = useState("identity");
 
   // Modals state
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
-  const [isAddActivityOpen, setIsAddActivityOpen] = useState(false);
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -85,10 +91,10 @@ export function ProspectDetailClient({
     name: prospect.name || "",
     legalName: prospect.legalName || "",
     category: prospect.category || "",
-    niche: prospect.niche || "",
+    niche: prospect.niche || "Roofing & Construction",
     website: prospect.website || "",
     googleMapsUrl: prospect.googleMapsUrl || "",
-    country: prospect.country || "USA",
+    country: prospect.country || "United States",
     state: prospect.state || "",
     city: prospect.city || "",
     address: prospect.address || "",
@@ -96,27 +102,28 @@ export function ProspectDetailClient({
     phone: prospect.phone || "",
     email: prospect.email || "",
     businessStatus: prospect.businessStatus || "OPERATIONAL",
-    googleRating: prospect.googleRating || "4.8",
-    reviewCount: prospect.reviewCount || 45,
+    googleRating: prospect.googleRating ? String(prospect.googleRating) : "4.8",
+    reviewCount: prospect.reviewCount ?? 45,
     googleProfileUrl: prospect.googleProfileUrl || "",
+    websiteExists: prospect.websiteExists ?? true,
     websiteQuality: prospect.websiteQuality || "FAIR",
     mobileUx: prospect.mobileUx || "POOR",
     ctaQuality: prospect.ctaQuality || "POOR",
-    quoteBookingFlow: prospect.quoteBookingFlow || "",
-    trustSignals: prospect.trustSignals || "",
-    seoVisibility: prospect.seoVisibility || "",
-    speedScore: prospect.speedScore || 65,
-    dealValue: prospect.dealValue || "",
-    stageId: prospect.stageId || "",
-    assignedToId: prospect.assignedToId || "",
+    quoteBookingFlow: prospect.quoteBookingFlow || "MISSING",
+    trustSignals: prospect.trustSignals || "AVERAGE",
+    seoVisibility: prospect.seoVisibility || "WEAK",
+    speedScore: prospect.speedScore ?? 65,
+    dealValue: prospect.dealValue ? String(prospect.dealValue) : "15000",
+    stageId: prospect.stageId || stages[0]?.id || "",
+    assignedToId: prospect.assignedToId || workspaceUsers[0]?.id || "",
     icpFit: prospect.icpFit || "HIGH",
     abilityToPay: prospect.abilityToPay || "HIGH",
     urgency: prospect.urgency || "HIGH",
     recurringPotential: prospect.recurringPotential || "MEDIUM",
     buyingSignals: prospect.buyingSignals || "",
     mainOpportunity: prospect.mainOpportunity || "",
-    leadSource: prospect.leadSource || "Direct Research",
-    outreachStatus: prospect.outreachStatus || "NOT_CONTACTED",
+    leadSource: prospect.leadSource || "Google Maps",
+    outreachStatus: prospect.outreachStatus || "READY",
     responseStatus: prospect.responseStatus || "",
     notes: prospect.notes || "",
     researchNotes: prospect.researchNotes || "",
@@ -159,9 +166,19 @@ export function ProspectDetailClient({
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    await updateProspectAction(prospect.id, editForm);
-    setIsEditOpen(false);
-    setIsSubmitting(false);
+    try {
+      await updateProspectAction(prospect.id, {
+        ...editForm,
+        reviewCount: Number(editForm.reviewCount) || 0,
+        speedScore: Number(editForm.speedScore) || 0,
+        dealValue: editForm.dealValue ? String(editForm.dealValue) : undefined,
+      });
+      setIsEditOpen(false);
+    } catch (err: unknown) {
+      alert((err as Error).message || "Failed to update prospect profile");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Save Custom Field Value
@@ -198,24 +215,7 @@ export function ProspectDetailClient({
     setIsSubmitting(false);
   };
 
-  // Add Activity Submit
-  const handleActivitySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    await createActivityAction({
-      prospectId: prospect.id,
-      ...activityForm,
-    });
-    setActivityForm({
-      type: "NOTE",
-      title: "",
-      description: "",
-      outcome: "",
-      nextAction: "",
-    });
-    setIsAddActivityOpen(false);
-    setIsSubmitting(false);
-  };
+
 
   // Add Task Submit
   const handleTaskSubmit = async (e: React.FormEvent) => {
@@ -292,35 +292,69 @@ export function ProspectDetailClient({
               </div>
 
               {/* Quick Contact & Location Bar */}
-              <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-muted-foreground pt-0.5">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-muted-foreground pt-1">
                 {prospect.niche && (
-                  <span className="flex items-center gap-1">
-                    <Building2 className="h-3.5 w-3.5 text-indigo-400" />
-                    {prospect.niche}
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-muted/60 dark:bg-zinc-800/80 border border-border/60 text-foreground font-medium">
+                    <Building2 className="h-3.5 w-3.5 text-primary" />
+                    <span>{prospect.niche}</span>
                   </span>
                 )}
-                {prospect.city && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-3.5 w-3.5 text-sky-400" />
-                    {prospect.city}, {prospect.state || prospect.country}
-                  </span>
+
+                {/* Location with Google Maps link */}
+                {(prospect.city || prospect.googleMapsUrl || prospect.address) && (
+                  <a
+                    href={
+                      prospect.googleMapsUrl ||
+                      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                        `${prospect.name} ${prospect.address || ""} ${prospect.city || ""} ${prospect.state || ""} ${prospect.country || ""}`
+                      )}`
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/10 dark:bg-sky-500/15 border border-sky-500/25 text-sky-600 dark:text-sky-400 font-medium hover:underline transition-colors"
+                    title="Open in Google Maps"
+                  >
+                    <MapPin className="h-3.5 w-3.5 text-sky-500 shrink-0" />
+                    <span>{prospect.city ? `${prospect.city}, ${prospect.state || prospect.country}` : "View Location on Maps"}</span>
+                    <ExternalLink className="h-2.5 w-2.5 opacity-70" />
+                  </a>
                 )}
+
+                {/* Phone with Click-to-Dial */}
                 {prospect.phone && (
-                  <span className="flex items-center gap-1">
-                    <Phone className="h-3.5 w-3.5 text-emerald-400" />
-                    {prospect.phone}
-                  </span>
+                  <a
+                    href={`tel:${prospect.phone}`}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 font-medium hover:underline transition-colors"
+                    title="Click to dial on phone"
+                  >
+                    <Phone className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                    <span>{prospect.phone}</span>
+                  </a>
                 )}
+
+                {/* Email with Click-to-Mail */}
+                {prospect.email && (
+                  <a
+                    href={`mailto:${prospect.email}`}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 dark:bg-primary/15 border border-primary/25 text-primary font-medium hover:underline transition-colors"
+                    title="Click to send email"
+                  >
+                    <Mail className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span>{prospect.email}</span>
+                  </a>
+                )}
+
+                {/* Website */}
                 {prospect.website && (
                   <a
                     href={prospect.website}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-1 text-primary hover:underline"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/60 dark:bg-zinc-800/80 border border-border/60 text-primary hover:underline transition-colors"
                   >
                     <Globe className="h-3.5 w-3.5" />
-                    {prospect.website.replace(/^https?:\/\//, "")}
-                    <ExternalLink className="h-3 w-3 ml-0.5" />
+                    <span>{prospect.website.replace(/^https?:\/\//, "")}</span>
+                    <ExternalLink className="h-2.5 w-2.5 opacity-70" />
                   </a>
                 )}
               </div>
@@ -332,10 +366,10 @@ export function ProspectDetailClient({
             <select
               value={prospect.stageId || ""}
               onChange={(e) => handleQuickStageChange(e.target.value)}
-              className="h-9 px-3 rounded-lg bg-background/60 border border-border/80 text-xs text-foreground font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+              className="h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 font-medium focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
             >
               {stages.map((s) => (
-                <option key={s.id} value={s.id}>
+                <option key={s.id} value={s.id} className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">
                   Stage: {s.name}
                 </option>
               ))}
@@ -772,298 +806,554 @@ export function ProspectDetailClient({
 
         {/* 5. Tab: Activities Feed */}
         <TabsContent value="timeline" className="space-y-4 pt-2">
-          <div className="rounded-2xl border border-border/60 bg-card/70 p-5 sm:p-6 backdrop-blur-md space-y-4">
-            <div className="flex items-center justify-between border-b border-border/40 pb-3">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Activity & Communication Feed</h3>
-                <p className="text-xs text-muted-foreground">Chronological log of notes, calls, and meetings</p>
-              </div>
-              <Button
-                size="sm"
-                variant="gradient"
-                onClick={() => setIsAddActivityOpen(true)}
-                className="gap-1.5 text-xs"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Log Activity
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              {activitiesList.length === 0 ? (
-                <div className="text-center py-8 text-xs text-muted-foreground">
-                  No activities recorded. Log your first outreach note or call.
-                </div>
-              ) : (
-                activitiesList.map((act) => (
-                  <div
-                    key={act.id}
-                    className="p-4 rounded-xl bg-background/50 border border-border/40 space-y-2 text-xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="info" className="uppercase font-mono text-[10px]">
-                          {act.type}
-                        </Badge>
-                        <span className="font-semibold text-foreground">{act.title}</span>
-                      </div>
-                      <span className="text-muted-foreground text-[11px]">
-                        {new Date(act.performedAt).toLocaleDateString()} at{" "}
-                        {new Date(act.performedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </div>
-                    {act.description && (
-                      <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                        {act.description}
-                      </p>
-                    )}
-                    {act.outcome && (
-                      <div className="text-emerald-400 bg-emerald-500/10 p-2 rounded-md font-medium">
-                        Outcome: {act.outcome}
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+          <ProspectActivitiesTab
+            prospectId={prospect.id}
+            prospectName={prospect.name}
+            initialActivities={activitiesList}
+            contactsList={contactsList}
+            currentUserId={currentUserId}
+          />
         </TabsContent>
 
         {/* 6. Tab: Tasks */}
         <TabsContent value="tasks" className="space-y-4 pt-2">
-          <div className="rounded-2xl border border-border/60 bg-card/70 p-5 sm:p-6 backdrop-blur-md space-y-4">
-            <div className="flex items-center justify-between border-b border-border/40 pb-3">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Follow-up Tasks</h3>
-                <p className="text-xs text-muted-foreground">Action items and deadlines for this prospect</p>
-              </div>
-              <Button
-                size="sm"
-                variant="gradient"
-                onClick={() => setIsAddTaskOpen(true)}
-                className="gap-1.5 text-xs"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                New Task
-              </Button>
-            </div>
-
-            <div className="space-y-2">
-              {tasksList.length === 0 ? (
-                <div className="text-center py-8 text-xs text-muted-foreground">
-                  No tasks assigned. Create a follow-up task.
-                </div>
-              ) : (
-                tasksList.map((t) => (
-                  <div
-                    key={t.id}
-                    className="p-3.5 rounded-xl bg-background/50 border border-border/40 flex items-center justify-between text-xs"
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={t.status === "COMPLETED"}
-                        onChange={async (e) => {
-                          await updateTaskStatusAction(
-                            t.id,
-                            e.target.checked ? "COMPLETED" : "TODO"
-                          );
-                        }}
-                        className="rounded border-border cursor-pointer h-4 w-4"
-                      />
-                      <div>
-                        <span className={t.status === "COMPLETED" ? "line-through text-muted-foreground" : "font-semibold text-foreground"}>
-                          {t.title}
-                        </span>
-                        {t.dueDate && (
-                          <div className="text-[11px] text-muted-foreground">
-                            Due: {new Date(t.dueDate).toLocaleDateString()}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <Badge variant={t.priority === "HIGH" ? "destructive" : "secondary"} className="text-[10px]">
-                      {t.priority}
-                    </Badge>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+          <ProspectTasksTab
+            prospectId={prospect.id}
+            prospectName={prospect.name}
+            initialTasks={tasksList}
+            initialLogs={taskLogsList}
+            workspaceUsers={workspaceUsers}
+            currentUserId={currentUserId}
+          />
         </TabsContent>
       </Tabs>
 
       {/* Comprehensive Edit All Fields Modal */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
+        <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-3xl bg-white dark:bg-[#121218] text-foreground dark:text-zinc-100 border border-slate-200/90 dark:border-zinc-800 shadow-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Full Prospect Profile</DialogTitle>
-            <DialogDescription>Update business identity, location, digital presence, ICP qualification, and pipeline status.</DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleEditSubmit} className="space-y-4 text-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex items-center gap-3 pb-2 border-b border-border/60">
+              <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
+                <Edit className="h-5 w-5" />
+              </div>
               <div>
-                <label className="block mb-1 font-medium text-foreground">Company Name *</label>
-                <Input
-                  required
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block mb-1 font-medium text-foreground">Legal Name</label>
-                <Input
-                  value={editForm.legalName}
-                  onChange={(e) => setEditForm({ ...editForm, legalName: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block mb-1 font-medium text-foreground">Industry / Niche</label>
-                <Input
-                  value={editForm.niche}
-                  onChange={(e) => setEditForm({ ...editForm, niche: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block mb-1 font-medium text-foreground">Website</label>
-                <Input
-                  value={editForm.website}
-                  onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block mb-1 font-medium text-foreground">Street Address</label>
-                <Input
-                  value={editForm.address}
-                  onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block mb-1 font-medium text-foreground">City</label>
-                <Input
-                  value={editForm.city}
-                  onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block mb-1 font-medium text-foreground">State / Province</label>
-                <Input
-                  value={editForm.state}
-                  onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block mb-1 font-medium text-foreground">Postal Code</label>
-                <Input
-                  value={editForm.postalCode}
-                  onChange={(e) => setEditForm({ ...editForm, postalCode: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block mb-1 font-medium text-foreground">Google Star Rating</label>
-                <Input
-                  value={editForm.googleRating}
-                  onChange={(e) => setEditForm({ ...editForm, googleRating: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block mb-1 font-medium text-foreground">Google Review Count</label>
-                <Input
-                  type="number"
-                  value={editForm.reviewCount}
-                  onChange={(e) => setEditForm({ ...editForm, reviewCount: Number(e.target.value) })}
-                />
-              </div>
-
-              <div>
-                <label className="block mb-1 font-medium text-foreground">ICP Fit</label>
-                <select
-                  value={editForm.icpFit}
-                  onChange={(e) => setEditForm({ ...editForm, icpFit: e.target.value })}
-                  className="w-full h-9 px-3 rounded-lg bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-border text-xs text-slate-900 dark:text-foreground shadow-2xs focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-                >
-                  <option value="HIGH">High Fit</option>
-                  <option value="MEDIUM">Medium Fit</option>
-                  <option value="LOW">Low Fit</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Ability to Pay</label>
-                <select
-                  value={editForm.abilityToPay}
-                  onChange={(e) => setEditForm({ ...editForm, abilityToPay: e.target.value })}
-                  className="w-full h-9 px-3 rounded-lg bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-border text-xs text-slate-900 dark:text-foreground shadow-2xs focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-                >
-                  <option value="HIGH">High</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="LOW">Low</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Sales Urgency</label>
-                <select
-                  value={editForm.urgency}
-                  onChange={(e) => setEditForm({ ...editForm, urgency: e.target.value })}
-                  className="w-full h-9 px-3 rounded-lg bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-border text-xs text-slate-900 dark:text-foreground shadow-2xs focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-                >
-                  <option value="HIGH">High</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="LOW">Low</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block mb-1 font-medium text-foreground">Target Deal Value ($)</label>
-                <Input
-                  value={editForm.dealValue}
-                  onChange={(e) => setEditForm({ ...editForm, dealValue: e.target.value })}
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block mb-1 font-medium text-foreground">Main Commercial Opportunity</label>
-                <Input
-                  value={editForm.mainOpportunity}
-                  onChange={(e) => setEditForm({ ...editForm, mainOpportunity: e.target.value })}
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block mb-1 font-medium text-foreground">Buying Signals</label>
-                <Input
-                  value={editForm.buyingSignals}
-                  onChange={(e) => setEditForm({ ...editForm, buyingSignals: e.target.value })}
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block mb-1 font-medium text-foreground">Research & Intelligence Notes</label>
-                <Textarea
-                  rows={3}
-                  value={editForm.researchNotes}
-                  onChange={(e) => setEditForm({ ...editForm, researchNotes: e.target.value })}
-                />
+                <DialogTitle className="text-base sm:text-lg font-bold text-foreground dark:text-zinc-100">
+                  Edit Full Prospect Profile
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Update business identity, location, digital presence, ICP qualification, and pipeline status.
+                </DialogDescription>
               </div>
             </div>
+          </DialogHeader>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>
+          <form onSubmit={handleEditSubmit} className="space-y-4 pt-1">
+            <Tabs value={editTab} onValueChange={setEditTab} className="space-y-4">
+              <div className="overflow-x-auto pb-1 scrollbar-none">
+                <TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-4 text-xs bg-muted/60 dark:bg-zinc-950/80 p-1 rounded-2xl border border-border/80">
+                  <TabsTrigger value="identity" className="text-xs whitespace-nowrap rounded-xl font-semibold">
+                    1. Identity & Location
+                  </TabsTrigger>
+                  <TabsTrigger value="digital" className="text-xs whitespace-nowrap rounded-xl font-semibold">
+                    2. Digital Audit
+                  </TabsTrigger>
+                  <TabsTrigger value="commercial" className="text-xs whitespace-nowrap rounded-xl font-semibold">
+                    3. Commercial & ICP
+                  </TabsTrigger>
+                  <TabsTrigger value="workflow" className="text-xs whitespace-nowrap rounded-xl font-semibold">
+                    4. Pipeline & Notes
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              {/* TAB 1: Business Identity & Location */}
+              <TabsContent value="identity" className="space-y-4 pt-1 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="sm:col-span-2">
+                    <label className="block mb-1.5 font-semibold text-foreground">
+                      Company Name <span className="text-destructive">*</span>
+                    </label>
+                    <Input
+                      required
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      className="font-medium bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Legal / Entity Name</label>
+                    <Input
+                      value={editForm.legalName}
+                      onChange={(e) => setEditForm({ ...editForm, legalName: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Industry / Vertical</label>
+                    <Input
+                      value={editForm.niche}
+                      onChange={(e) => setEditForm({ ...editForm, niche: e.target.value, category: e.target.value })}
+                      placeholder="e.g. Roofing & Solar, B2B SaaS"
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Business Operating Status</label>
+                    <select
+                      value={editForm.businessStatus}
+                      onChange={(e) => setEditForm({ ...editForm, businessStatus: e.target.value })}
+                      className="w-full h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    >
+                      <option value="OPERATIONAL" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Operational & Active</option>
+                      <option value="TEMPORARILY_CLOSED" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Temporarily Closed</option>
+                      <option value="PERMANENTLY_CLOSED" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Permanently Closed</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Country</label>
+                    <Input
+                      value={editForm.country}
+                      onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">City</label>
+                    <Input
+                      value={editForm.city}
+                      onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">State / Region</label>
+                    <Input
+                      value={editForm.state}
+                      onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Street Address</label>
+                    <Input
+                      value={editForm.address}
+                      onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Postal / Zip Code</label>
+                    <Input
+                      value={editForm.postalCode}
+                      onChange={(e) => setEditForm({ ...editForm, postalCode: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Main Business Phone</label>
+                    <Input
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Public Email</label>
+                    <Input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Website URL</label>
+                    <Input
+                      value={editForm.website}
+                      onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
+                      placeholder="https://..."
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Google Maps URL</label>
+                    <Input
+                      value={editForm.googleMapsUrl}
+                      onChange={(e) => setEditForm({ ...editForm, googleMapsUrl: e.target.value })}
+                      placeholder="https://maps.google.com/..."
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* TAB 2: Digital Presence & Google Audit */}
+              <TabsContent value="digital" className="space-y-4 pt-1 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Google Star Rating</label>
+                    <Input
+                      value={editForm.googleRating}
+                      onChange={(e) => setEditForm({ ...editForm, googleRating: e.target.value })}
+                      placeholder="e.g. 4.8"
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Review Count</label>
+                    <Input
+                      type="number"
+                      value={editForm.reviewCount}
+                      onChange={(e) => setEditForm({ ...editForm, reviewCount: Number(e.target.value) })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block mb-1.5 font-semibold text-foreground">Google Business Profile URL</label>
+                    <Input
+                      value={editForm.googleProfileUrl}
+                      onChange={(e) => setEditForm({ ...editForm, googleProfileUrl: e.target.value })}
+                      placeholder="https://google.com/maps/place/..."
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Website Quality</label>
+                    <select
+                      value={editForm.websiteQuality}
+                      onChange={(e) => setEditForm({ ...editForm, websiteQuality: e.target.value })}
+                      className="w-full h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    >
+                      <option value="EXCELLENT" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Excellent (Modern, Fast, High Converting)</option>
+                      <option value="GOOD" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Good (Decent Design)</option>
+                      <option value="FAIR" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Fair (Outdated, Needs Refresh)</option>
+                      <option value="POOR" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Poor (Broken Layouts, Slow)</option>
+                      <option value="MISSING" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Missing / No Website</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Mobile Responsiveness / UX</label>
+                    <select
+                      value={editForm.mobileUx}
+                      onChange={(e) => setEditForm({ ...editForm, mobileUx: e.target.value })}
+                      className="w-full h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    >
+                      <option value="EXCELLENT" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Excellent Mobile UX</option>
+                      <option value="AVERAGE" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Average Mobile UX</option>
+                      <option value="POOR" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Poor / Hard to Read on Mobile</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Call-to-Action (CTA) Quality</label>
+                    <select
+                      value={editForm.ctaQuality}
+                      onChange={(e) => setEditForm({ ...editForm, ctaQuality: e.target.value })}
+                      className="w-full h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    >
+                      <option value="STRONG" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Strong (Clear Phone / Form)</option>
+                      <option value="AVERAGE" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Average</option>
+                      <option value="POOR" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Poor / Hidden CTA</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Instant Booking / Quote Flow</label>
+                    <select
+                      value={editForm.quoteBookingFlow}
+                      onChange={(e) => setEditForm({ ...editForm, quoteBookingFlow: e.target.value })}
+                      className="w-full h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    >
+                      <option value="EXISTS" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Automated Calendar / Instant Flow</option>
+                      <option value="BASIC" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Basic Contact Form Only</option>
+                      <option value="MISSING" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Missing (Opportunity for Tool)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Trust Signals</label>
+                    <select
+                      value={editForm.trustSignals}
+                      onChange={(e) => setEditForm({ ...editForm, trustSignals: e.target.value })}
+                      className="w-full h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    >
+                      <option value="STRONG" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Strong (Badges, Reviews, Licensure)</option>
+                      <option value="AVERAGE" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Average</option>
+                      <option value="WEAK" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Weak / Outdated</option>
+                      <option value="MISSING" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Missing</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">SEO Visibility</label>
+                    <select
+                      value={editForm.seoVisibility}
+                      onChange={(e) => setEditForm({ ...editForm, seoVisibility: e.target.value })}
+                      className="w-full h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    >
+                      <option value="STRONG" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Strong (Page 1 Rankings)</option>
+                      <option value="AVERAGE" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Average</option>
+                      <option value="WEAK" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Weak (Page 2+)</option>
+                      <option value="MISSING" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Missing / Unindexed</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">PageSpeed Score (0-100)</label>
+                    <Input
+                      type="number"
+                      value={editForm.speedScore}
+                      onChange={(e) => setEditForm({ ...editForm, speedScore: Number(e.target.value) })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Facebook Page URL</label>
+                    <Input
+                      value={editForm.facebookUrl}
+                      onChange={(e) => setEditForm({ ...editForm, facebookUrl: e.target.value })}
+                      placeholder="https://facebook.com/..."
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Instagram URL</label>
+                    <Input
+                      value={editForm.instagramUrl}
+                      onChange={(e) => setEditForm({ ...editForm, instagramUrl: e.target.value })}
+                      placeholder="https://instagram.com/..."
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block mb-1.5 font-semibold text-foreground">LinkedIn Company URL</label>
+                    <Input
+                      value={editForm.linkedInUrl}
+                      onChange={(e) => setEditForm({ ...editForm, linkedInUrl: e.target.value })}
+                      placeholder="https://linkedin.com/company/..."
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* TAB 3: Commercial Qualification & ICP */}
+              <TabsContent value="commercial" className="space-y-4 pt-1 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">ICP Commercial Fit</label>
+                    <select
+                      value={editForm.icpFit}
+                      onChange={(e) => setEditForm({ ...editForm, icpFit: e.target.value })}
+                      className="w-full h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    >
+                      <option value="HIGH" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">High Fit (Prime Target)</option>
+                      <option value="MEDIUM" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Medium Fit</option>
+                      <option value="LOW" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Low Fit</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Estimated Ability to Pay</label>
+                    <select
+                      value={editForm.abilityToPay}
+                      onChange={(e) => setEditForm({ ...editForm, abilityToPay: e.target.value })}
+                      className="w-full h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    >
+                      <option value="HIGH" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">High ($1M+ Gross Revenue)</option>
+                      <option value="MEDIUM" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Medium ($300k - $1M)</option>
+                      <option value="LOW" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Low (&lt; $300k)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Sales Urgency</label>
+                    <select
+                      value={editForm.urgency}
+                      onChange={(e) => setEditForm({ ...editForm, urgency: e.target.value })}
+                      className="w-full h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    >
+                      <option value="HIGH" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">High Urgency</option>
+                      <option value="MEDIUM" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Medium Urgency</option>
+                      <option value="LOW" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Low Urgency</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Recurring Revenue Potential</label>
+                    <select
+                      value={editForm.recurringPotential}
+                      onChange={(e) => setEditForm({ ...editForm, recurringPotential: e.target.value })}
+                      className="w-full h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    >
+                      <option value="HIGH" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">High (Monthly Retainer / SaaS)</option>
+                      <option value="MEDIUM" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Medium</option>
+                      <option value="LOW" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Low (One-off Only)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Target Deal Value ($)</label>
+                    <Input
+                      value={editForm.dealValue}
+                      onChange={(e) => setEditForm({ ...editForm, dealValue: e.target.value })}
+                      placeholder="e.g. 15000"
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Lead Acquisition Source</label>
+                    <Input
+                      value={editForm.leadSource}
+                      onChange={(e) => setEditForm({ ...editForm, leadSource: e.target.value })}
+                      placeholder="e.g. Google Maps, Directory, Referral"
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block mb-1.5 font-semibold text-foreground">Main Commercial Opportunity</label>
+                    <Input
+                      value={editForm.mainOpportunity}
+                      onChange={(e) => setEditForm({ ...editForm, mainOpportunity: e.target.value })}
+                      placeholder="e.g. Website redesign + Google Maps ranking + lead booking widget"
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block mb-1.5 font-semibold text-foreground">Buying Signals</label>
+                    <Input
+                      value={editForm.buyingSignals}
+                      onChange={(e) => setEditForm({ ...editForm, buyingSignals: e.target.value })}
+                      placeholder="e.g. Rebranding, hiring sales reps, expanding locations"
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* TAB 4: Pipeline, Ownership & Notes */}
+              <TabsContent value="workflow" className="space-y-4 pt-1 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Pipeline Stage</label>
+                    <select
+                      value={editForm.stageId}
+                      onChange={(e) => setEditForm({ ...editForm, stageId: e.target.value })}
+                      className="w-full h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    >
+                      {stages.map((s) => (
+                        <option key={s.id} value={s.id} className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Assigned Team Member</label>
+                    <select
+                      value={editForm.assignedToId}
+                      onChange={(e) => setEditForm({ ...editForm, assignedToId: e.target.value })}
+                      className="w-full h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    >
+                      {workspaceUsers.map((u) => (
+                        <option key={u.id} value={u.id} className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">
+                          {u.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Outreach Workflow Status</label>
+                    <select
+                      value={editForm.outreachStatus}
+                      onChange={(e) => setEditForm({ ...editForm, outreachStatus: e.target.value })}
+                      className="w-full h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    >
+                      <option value="READY" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Ready for Outreach</option>
+                      <option value="NOT_CONTACTED" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Not Contacted</option>
+                      <option value="IN_PROGRESS" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">In Progress</option>
+                      <option value="CONTACTED" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Contacted (First Touch)</option>
+                      <option value="FOLLOW_UP_SCHEDULED" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Follow-up Scheduled</option>
+                      <option value="REPLIED" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Replied / In Conversation</option>
+                      <option value="MEETING_BOOKED" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Meeting Booked</option>
+                      <option value="UNRESPONSIVE" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Unresponsive</option>
+                      <option value="BOUNCED" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Bounced</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Lead Response Sentiment</label>
+                    <select
+                      value={editForm.responseStatus}
+                      onChange={(e) => setEditForm({ ...editForm, responseStatus: e.target.value })}
+                      className="w-full h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    >
+                      <option value="" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">None / Pending</option>
+                      <option value="POSITIVE" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Positive (Eager to Talk)</option>
+                      <option value="INTERESTED" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Interested (Wants Info)</option>
+                      <option value="NEUTRAL" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Neutral</option>
+                      <option value="NOT_NOW" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Not Right Now (Follow Up Later)</option>
+                      <option value="NOT_INTERESTED" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Not Interested</option>
+                      <option value="DO_NOT_CONTACT" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Do Not Contact</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block mb-1.5 font-semibold text-foreground">General Account Notes</label>
+                    <Textarea
+                      rows={2}
+                      value={editForm.notes}
+                      onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                      placeholder="General notes about the company or relationship..."
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block mb-1.5 font-semibold text-foreground">Research & Intelligence Notes</label>
+                    <Textarea
+                      rows={3}
+                      value={editForm.researchNotes}
+                      onChange={(e) => setEditForm({ ...editForm, researchNotes: e.target.value })}
+                      placeholder="Key audit findings, pain points, or talking points discovered..."
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t border-border/60">
+              <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)} className="rounded-xl">
                 Cancel
               </Button>
-              <Button type="submit" variant="gradient" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : "Save All Changes"}
+              <Button type="submit" variant="gradient" disabled={isSubmitting} className="rounded-xl font-semibold gap-1.5">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>{isSubmitting ? "Saving..." : "Save All Changes"}</span>
               </Button>
             </DialogFooter>
           </form>
@@ -1161,71 +1451,7 @@ export function ProspectDetailClient({
         </DialogContent>
       </Dialog>
 
-      {/* Log Activity Modal */}
-      <Dialog open={isAddActivityOpen} onOpenChange={setIsAddActivityOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Log Activity / Note</DialogTitle>
-            <DialogDescription>Record an outreach event or research update.</DialogDescription>
-          </DialogHeader>
 
-          <form onSubmit={handleActivitySubmit} className="space-y-4 text-xs">
-            <div>
-              <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Activity Type</label>
-              <select
-                value={activityForm.type}
-                onChange={(e) => setActivityForm({ ...activityForm, type: e.target.value })}
-                className="w-full h-9 px-3 rounded-lg bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-border text-xs text-slate-900 dark:text-foreground shadow-2xs focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-              >
-                <option value="NOTE">Internal Research Note</option>
-                <option value="PHONE">Phone Call</option>
-                <option value="EMAIL">Email Outreach</option>
-                <option value="LINKEDIN">LinkedIn Message</option>
-                <option value="MEETING">Discovery Meeting</option>
-                <option value="PROPOSAL">Proposal Presentation</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Title / Headline *</label>
-              <Input
-                required
-                placeholder="e.g. Discovery call completed with founder"
-                value={activityForm.title}
-                onChange={(e) => setActivityForm({ ...activityForm, title: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Description & Key Points</label>
-              <Textarea
-                rows={3}
-                placeholder="Discussed scope, estimated budget, and timeline..."
-                value={activityForm.description}
-                onChange={(e) => setActivityForm({ ...activityForm, description: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <label className="block mb-1 font-semibold text-slate-800 dark:text-slate-200">Outcome / Takeaway</label>
-              <Input
-                placeholder="e.g. Requested customized proposal by Thursday"
-                value={activityForm.outcome}
-                onChange={(e) => setActivityForm({ ...activityForm, outcome: e.target.value })}
-              />
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsAddActivityOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" variant="gradient" disabled={isSubmitting}>
-                Save Activity
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* New Task Modal */}
       <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>

@@ -5,12 +5,13 @@ import {
   contacts,
   activities,
   tasks,
+  taskLogs,
   pipelineStages,
   users,
   customFields,
   customFieldValues,
 } from "@/lib/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, asc } from "drizzle-orm";
 import { ProspectDetailClient } from "@/components/prospects/prospect-detail-client";
 import { notFound } from "next/navigation";
 
@@ -53,10 +54,26 @@ export default async function ProspectDetailPage({
     )
     .orderBy(desc(contacts.isDecisionMaker));
 
-  // 3. Fetch activities
-  const activitiesList = await db
-    .select()
+  // 3. Fetch activities with user attribution
+  const rawActivitiesList = await db
+    .select({
+      id: activities.id,
+      workspaceId: activities.workspaceId,
+      prospectId: activities.prospectId,
+      contactId: activities.contactId,
+      userId: activities.userId,
+      userName: users.name,
+      type: activities.type,
+      title: activities.title,
+      description: activities.description,
+      outcome: activities.outcome,
+      nextAction: activities.nextAction,
+      attachmentUrl: activities.attachmentUrl,
+      performedAt: activities.performedAt,
+      createdAt: activities.createdAt,
+    })
     .from(activities)
+    .leftJoin(users, eq(activities.userId, users.id))
     .where(
       and(
         eq(activities.prospectId, id),
@@ -65,28 +82,75 @@ export default async function ProspectDetailPage({
     )
     .orderBy(desc(activities.performedAt));
 
-  // 4. Fetch tasks
+  const activitiesList = rawActivitiesList.map((a) => ({
+    ...a,
+    userName: a.userName || "Team Member",
+  }));
+
+  // 4. Fetch tasks with assigned user details
   const tasksList = await db
-    .select()
+    .select({
+      id: tasks.id,
+      title: tasks.title,
+      description: tasks.description,
+      dueDate: tasks.dueDate,
+      priority: tasks.priority,
+      status: tasks.status,
+      prospectId: tasks.prospectId,
+      prospectName: prospects.name,
+      assignedToId: tasks.assignedToId,
+      assignedToName: users.name,
+      createdById: tasks.createdById,
+      createdAt: tasks.createdAt,
+      completedAt: tasks.completedAt,
+    })
     .from(tasks)
+    .leftJoin(prospects, eq(tasks.prospectId, prospects.id))
+    .leftJoin(users, eq(tasks.assignedToId, users.id))
     .where(
       and(
         eq(tasks.prospectId, id),
         eq(tasks.workspaceId, ctx.workspaceId)
       )
     )
-    .orderBy(tasks.dueDate);
+    .orderBy(desc(tasks.createdAt));
 
-  // 5. Fetch stages & users
+  // 5. Fetch task execution & handover logs
+  const rawTaskLogsList = await db
+    .select({
+      id: taskLogs.id,
+      taskId: taskLogs.taskId,
+      userId: taskLogs.userId,
+      userName: users.name,
+      userEmail: users.email,
+      action: taskLogs.action,
+      note: taskLogs.note,
+      attachmentUrl: taskLogs.attachmentUrl,
+      createdAt: taskLogs.createdAt,
+    })
+    .from(taskLogs)
+    .leftJoin(users, eq(taskLogs.userId, users.id))
+    .where(eq(taskLogs.workspaceId, ctx.workspaceId))
+    .orderBy(desc(taskLogs.createdAt));
+
+  const taskLogsList = rawTaskLogsList.map((l) => ({
+    ...l,
+    userName: l.userName || "Team Member",
+  }));
+
+  // 6. Fetch stages & users
   const stages = await db
     .select()
     .from(pipelineStages)
     .where(eq(pipelineStages.workspaceId, ctx.workspaceId))
     .orderBy(pipelineStages.orderIndex);
 
-  const workspaceUsers = await db.select({ id: users.id, name: users.name }).from(users);
+  const workspaceUsers = await db
+    .select({ id: users.id, name: users.name, email: users.email })
+    .from(users)
+    .orderBy(users.name);
 
-  // 6. Fetch custom fields & values
+  // 7. Fetch custom fields & values
   const customFieldsList = await db
     .select()
     .from(customFields)
@@ -125,10 +189,12 @@ export default async function ProspectDetailPage({
       contactsList={contactsList}
       activitiesList={activitiesList}
       tasksList={tasksList}
+      taskLogsList={taskLogsList}
       customFieldsList={customFieldsList}
       customFieldValuesMap={customFieldValuesMap}
       stages={stages}
       workspaceUsers={workspaceUsers}
+      currentUserId={ctx.userId}
       canDelete={canDelete}
     />
   );
