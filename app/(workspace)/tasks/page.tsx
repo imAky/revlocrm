@@ -1,11 +1,7 @@
 import { requireAuth } from "@/lib/permissions/server-guards";
 import { db } from "@/lib/db";
-import { tasks, prospects, users } from "@/lib/db/schema";
-import { eq, and, desc } from "drizzle-orm";
-import Link from "next/link";
-import { CalendarCheck2, Building2, User, AlertCircle, Plus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { tasks, prospects, users, taskLogs } from "@/lib/db/schema";
+import { eq, and, desc, asc } from "drizzle-orm";
 import { TasksClientList } from "@/components/tasks/tasks-client-list";
 
 export default async function TasksPage() {
@@ -23,6 +19,7 @@ export default async function TasksPage() {
       prospectName: prospects.name,
       assignedToId: tasks.assignedToId,
       assignedToName: users.name,
+      createdById: tasks.createdById,
       createdAt: tasks.createdAt,
       completedAt: tasks.completedAt,
     })
@@ -31,6 +28,23 @@ export default async function TasksPage() {
     .leftJoin(users, eq(tasks.assignedToId, users.id))
     .where(eq(tasks.workspaceId, ctx.workspaceId))
     .orderBy(desc(tasks.createdAt));
+
+  const allTaskLogs = await db
+    .select({
+      id: taskLogs.id,
+      taskId: taskLogs.taskId,
+      userId: taskLogs.userId,
+      userName: users.name,
+      userEmail: users.email,
+      action: taskLogs.action,
+      note: taskLogs.note,
+      attachmentUrl: taskLogs.attachmentUrl,
+      createdAt: taskLogs.createdAt,
+    })
+    .from(taskLogs)
+    .leftJoin(users, eq(taskLogs.userId, users.id))
+    .where(eq(taskLogs.workspaceId, ctx.workspaceId))
+    .orderBy(asc(taskLogs.createdAt));
 
   const workspaceProspects = await db
     .select({
@@ -65,13 +79,14 @@ export default async function TasksPage() {
             Tasks & Follow-up Queue
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Organize action items, outreach schedules, and urgent deadlines.
+            Organize action items, team handover logs, and reference screenshots.
           </p>
         </div>
       </div>
 
       <TasksClientList
         initialTasks={allTasks as any[]}
+        initialLogs={allTaskLogs as any[]}
         prospects={workspaceProspects}
         users={workspaceUsers}
         currentUserId={ctx.userId}

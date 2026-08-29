@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import confetti from "canvas-confetti";
 import {
@@ -15,6 +15,8 @@ import {
   FileText,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Search,
   X,
   ArrowUpDown,
@@ -27,6 +29,15 @@ import {
   Save,
   Layers,
   Zap,
+  ImageIcon,
+  UploadCloud,
+  History,
+  MessageSquare,
+  ExternalLink,
+  Lock,
+  Send,
+  Eye,
+  CheckCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +56,10 @@ import {
   updateTaskStatusAction,
   updateTaskAction,
   deleteTaskAction,
+  completeTaskWithLogAction,
+  reopenTaskAction,
+  addTaskLogAction,
+  TaskLogItem,
 } from "@/lib/actions/tasks";
 
 export interface TaskItem {
@@ -58,6 +73,7 @@ export interface TaskItem {
   prospectName?: string | null;
   assignedToId?: string | null;
   assignedToName?: string | null;
+  createdById?: string | null;
   createdAt?: string | Date | null;
   completedAt?: string | Date | null;
 }
@@ -85,13 +101,39 @@ type SortOption =
   | "TITLE_AZ";
 type StatusFilter = "ALL_ACTIVE" | "MINE" | "OVERDUE" | "COMPLETED" | "ALL";
 
+interface ProcessedImageData {
+  id: string;
+  base64: string;
+  fileName: string;
+  contentType: string;
+  previewUrl: string;
+  sizeKB: number;
+  originalSizeKB: number;
+}
+
+function parseAttachmentUrls(attachmentUrl?: string | null): string[] {
+  if (!attachmentUrl) return [];
+  try {
+    if (attachmentUrl.startsWith("[")) {
+      const parsed = JSON.parse(attachmentUrl);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean);
+    }
+  } catch {}
+  if (attachmentUrl.includes(",")) {
+    return attachmentUrl.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  return [attachmentUrl];
+}
+
 export function TasksClientList({
   initialTasks,
+  initialLogs = [],
   prospects = [],
   users = [],
   currentUserId,
 }: {
   initialTasks: TaskItem[];
+  initialLogs?: TaskLogItem[];
   prospects?: ProspectOption[];
   users?: UserOption[];
   currentUserId: string;
@@ -111,6 +153,19 @@ export function TasksClientList({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set());
 
+  // Task active sub-tab inside card: "NOTES" | "LOGS"
+  const [taskActiveTab, setTaskActiveTab] = useState<Record<string, "NOTES" | "LOGS">>({});
+
+  // Dynamic In-memory Task Logs cache
+  const [taskLogsMap, setTaskLogsMap] = useState<Record<string, TaskLogItem[]>>(() => {
+    const map: Record<string, TaskLogItem[]> = {};
+    initialLogs.forEach((log) => {
+      if (!map[log.taskId]) map[log.taskId] = [];
+      map[log.taskId].push(log);
+    });
+    return map;
+  });
+
   // Inline Note Editing States (taskId -> note text)
   const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
   const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
@@ -125,6 +180,27 @@ export function TasksClientList({
     "LOW" | "MEDIUM" | "HIGH" | "URGENT"
   >("MEDIUM");
   const [isQuickAdding, setIsQuickAdding] = useState(false);
+
+  // Completion Log Dialog Modal State (multiple images supported)
+  const [completingTask, setCompletingTask] = useState<TaskItem | null>(null);
+  const [completionNote, setCompletionNote] = useState("");
+  const [completionImages, setCompletionImages] = useState<ProcessedImageData[]>([]);
+  const [isCompletingSubmitting, setIsCompletingSubmitting] = useState(false);
+  const completionFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Inline New Comment/Log State per Task (multiple images supported)
+  const [inlineNewLogText, setInlineNewLogText] = useState<Record<string, string>>({});
+  const [inlineLogImages, setInlineLogImages] = useState<Record<string, ProcessedImageData[]>>({});
+  const [addingLogTaskId, setAddingLogTaskId] = useState<string | null>(null);
+
+  // Lightbox View for Attached Screenshots Gallery
+  const [lightboxGallery, setLightboxGallery] = useState<{
+    images: string[];
+    activeIndex: number;
+  } | null>(null);
+
+  // Permission warning toast/message for personal tasks
+  const [permissionWarning, setPermissionWarning] = useState<string | null>(null);
 
   // Create Task Modal Form State
   const [form, setForm] = useState({
@@ -141,6 +217,16 @@ export function TasksClientList({
 
   // Helper: Is task personal?
   const isPersonalTask = (t: TaskItem) => !t.prospectId;
+
+  // Helper: Can current user complete this personal task?
+  const canCompletePersonalTask = (t: TaskItem) => {
+    if (!isPersonalTask(t)) return true; // Prospect tasks can be completed by any user
+    return (
+      t.createdById === currentUserId ||
+      t.assignedToId === currentUserId ||
+      !t.assignedToId
+    );
+  };
 
   // Helper: Is task due today?
   const isDueToday = (dueDate?: string | Date | null) => {
@@ -337,7 +423,42 @@ export function TasksClientList({
     });
   };
 
-  // Trigger rich physics-based confetti burst
+  // Keyboard Navigation for Lightbox Gallery
+  const handleNextImage = useCallback(() => {
+    setLightboxGallery((prev) => {
+      if (!prev || prev.images.length <= 1) return prev;
+      const nextIndex = (prev.activeIndex + 1) % prev.images.length;
+      return { ...prev, activeIndex: nextIndex };
+    });
+  }, []);
+
+  const handlePrevImage = useCallback(() => {
+    setLightboxGallery((prev) => {
+      if (!prev || prev.images.length <= 1) return prev;
+      const prevIndex = (prev.activeIndex - 1 + prev.images.length) % prev.images.length;
+      return { ...prev, activeIndex: prevIndex };
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!lightboxGallery) return;
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        handleNextImage();
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        handlePrevImage();
+      } else if (e.key === "Escape") {
+        setLightboxGallery(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lightboxGallery, handleNextImage, handlePrevImage]);
+
+  // Trigger physics confetti burst
   const triggerConfettiCelebration = (event?: React.MouseEvent) => {
     let originX = 0.5;
     let originY = 0.5;
@@ -349,10 +470,9 @@ export function TasksClientList({
     }
 
     try {
-      // Primary burst of colorful confetti
       confetti({
-        particleCount: 45,
-        spread: 65,
+        particleCount: 50,
+        spread: 70,
         origin: { x: originX, y: originY },
         colors: [
           "#10b981",
@@ -367,37 +487,224 @@ export function TasksClientList({
         gravity: 0.85,
         ticks: 200,
         shapes: ["circle", "square"],
-        scalar: 0.95,
+        scalar: 1,
         zIndex: 99999,
       });
 
-      // Secondary glitter burst
       setTimeout(() => {
         confetti({
-          particleCount: 25,
-          spread: 85,
+          particleCount: 30,
+          spread: 90,
           origin: { x: originX, y: originY },
           colors: ["#fbbf24", "#34d399", "#818cf8", "#f472b6", "#60a5fa"],
-          startVelocity: 19,
+          startVelocity: 20,
           gravity: 0.75,
           ticks: 160,
-          scalar: 0.8,
+          scalar: 0.85,
           zIndex: 99999,
         });
       }, 100);
-    } catch {
-      // Fallback gracefully if canvas is unavailable
+    } catch {}
+  };
+
+  // Handle task completion or prompt handover log dialog
+  const handleCheckboxClick = async (task: TaskItem, e: React.MouseEvent) => {
+    if (task.status === "COMPLETED") {
+      // Reopen task
+      if (isPersonalTask(task) && !canCompletePersonalTask(task)) {
+        showWarning("Personal tasks can only be updated by the owner.");
+        return;
+      }
+      await reopenTaskAction(task.id);
+      return;
+    }
+
+    // Checking off a task
+    if (isPersonalTask(task)) {
+      // Personal task: verify authorization
+      if (!canCompletePersonalTask(task)) {
+        showWarning("Personal tasks can only be completed by the user who created them.");
+        return;
+      }
+      // Authorized to complete personal task
+      triggerConfettiCelebration(e);
+      await completeTaskWithLogAction({ taskId: task.id, note: "Completed personal task" });
+    } else {
+      // Prospect task: open completion log dialog so any user can log their resolution & attach screenshots
+      setCompletingTask(task);
+      setCompletionNote("");
+      setCompletionImages([]);
     }
   };
 
-  const handleToggleComplete = async (task: TaskItem, e?: React.MouseEvent) => {
-    const nextStatus = task.status === "COMPLETED" ? "TODO" : "COMPLETED";
+  const showWarning = (msg: string) => {
+    setPermissionWarning(msg);
+    setTimeout(() => {
+      setPermissionWarning(null);
+    }, 3500);
+  };
 
-    if (nextStatus === "COMPLETED") {
-      triggerConfettiCelebration(e);
+  // Confirm completion of prospect task with log & multiple screenshots
+  const handleConfirmCompletionWithLog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!completingTask) return;
+    setIsCompletingSubmitting(true);
+
+    try {
+      triggerConfettiCelebration();
+      const attachments = completionImages.map((img) => ({
+        base64: img.base64,
+        fileName: img.fileName,
+        contentType: img.contentType,
+      }));
+
+      const res = await completeTaskWithLogAction({
+        taskId: completingTask.id,
+        note: completionNote.trim() || undefined,
+        attachments: attachments.length > 0 ? attachments : undefined,
+      });
+
+      if (res.success) {
+        // Optimistically add log
+        const currentUser = users.find((u) => u.id === currentUserId);
+        const newLog: TaskLogItem = {
+          id: crypto.randomUUID(),
+          taskId: completingTask.id,
+          userId: currentUserId,
+          userName: currentUser?.name || "You",
+          userEmail: currentUser?.email,
+          action: "COMPLETED",
+          note: completionNote.trim() || "Marked task as completed",
+          attachmentUrl: res.attachmentUrl,
+          createdAt: new Date(),
+        };
+
+        setTaskLogsMap((prev) => ({
+          ...prev,
+          [completingTask.id]: [...(prev[completingTask.id] || []), newLog],
+        }));
+
+        setCompletingTask(null);
+        setCompletionNote("");
+        setCompletionImages([]);
+      }
+    } finally {
+      setIsCompletingSubmitting(false);
     }
+  };
 
-    await updateTaskStatusAction(task.id, nextStatus);
+  // Add inline handover comment/log to any task with multiple screenshots
+  const handleAddInlineLog = async (taskId: string) => {
+    const text = inlineNewLogText[taskId] || "";
+    const imgs = inlineLogImages[taskId] || [];
+    if (!text.trim() && imgs.length === 0) return;
+
+    setAddingLogTaskId(taskId);
+    try {
+      const attachments = imgs.map((img) => ({
+        base64: img.base64,
+        fileName: img.fileName,
+        contentType: img.contentType,
+      }));
+
+      const res = await addTaskLogAction({
+        taskId,
+        note: text.trim() || "Added reference screenshots",
+        attachments: attachments.length > 0 ? attachments : undefined,
+      });
+
+      if (res.success) {
+        const currentUser = users.find((u) => u.id === currentUserId);
+        const newLog: TaskLogItem = {
+          id: res.logId || crypto.randomUUID(),
+          taskId,
+          userId: currentUserId,
+          userName: currentUser?.name || "You",
+          userEmail: currentUser?.email,
+          action: "COMMENT",
+          note: text.trim() || "Added reference screenshots",
+          attachmentUrl: res.attachmentUrl,
+          createdAt: new Date(),
+        };
+
+        setTaskLogsMap((prev) => ({
+          ...prev,
+          [taskId]: [...(prev[taskId] || []), newLog],
+        }));
+
+        setInlineNewLogText((prev) => ({ ...prev, [taskId]: "" }));
+        setInlineLogImages((prev) => ({ ...prev, [taskId]: [] }));
+      }
+    } finally {
+      setAddingLogTaskId(null);
+    }
+  };
+
+  // Smart Client-Side Image Compression using HTML5 Canvas & WebP:
+  const compressSingleFile = (file: File): Promise<ProcessedImageData> => {
+    return new Promise((resolve) => {
+      const originalSizeKB = Math.round(file.size / 1024);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDimension = 1280;
+          let { width, height } = img;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return;
+
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          ctx.drawImage(img, 0, 0, width, height);
+
+          let dataUrl = canvas.toDataURL("image/webp", 0.72);
+          let contentType = "image/webp";
+          if (!dataUrl.startsWith("data:image/webp")) {
+            dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+            contentType = "image/jpeg";
+          }
+
+          const base64Data = dataUrl.split(",")[1];
+          const sizeKB = Math.round((base64Data.length * 0.75) / 1024);
+          const cleanName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+
+          resolve({
+            id: crypto.randomUUID(),
+            base64: base64Data,
+            fileName: cleanName,
+            contentType,
+            previewUrl: dataUrl,
+            sizeKB,
+            originalSizeKB,
+          });
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleProcessMultipleFiles = async (
+    files: FileList | File[],
+    onAppend: (newImages: ProcessedImageData[]) => void
+  ) => {
+    const list = Array.from(files);
+    if (list.length === 0) return;
+    const processed = await Promise.all(list.map((f) => compressSingleFile(f)));
+    onAppend(processed);
   };
 
   // Save Task Note
@@ -573,7 +880,17 @@ export function TasksClientList({
 
   return (
     <div className="space-y-6 relative max-w-full pb-12">
-      {/* 1. Header Navigation Tabs Bar with Luxury Glass Style */}
+      {/* Permission Warning Toast for Personal Task */}
+      {permissionWarning && (
+        <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-4 fade-in duration-300">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-rose-950/90 text-white border border-rose-500/40 shadow-2xl backdrop-blur-xl">
+            <Lock className="h-4 w-4 text-rose-400" />
+            <span className="text-xs font-semibold">{permissionWarning}</span>
+          </div>
+        </div>
+      )}
+
+      {/* 1. Header Navigation Tabs Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-1.5 rounded-2xl bg-card/60 dark:bg-zinc-900/60 backdrop-blur-xl border border-border/80 shadow-xs">
         {/* Navigation Tabs - Responsive Scroll Container */}
         <div className="flex items-center gap-1.5 p-1 rounded-xl bg-muted/50 dark:bg-zinc-950/60 border border-border/50 max-w-full overflow-x-auto scrollbar-none">
@@ -655,7 +972,7 @@ export function TasksClientList({
         </Button>
       </div>
 
-      {/* 2. Premium Quick Add Floating Card */}
+      {/* 2. Quick Add Floating Card */}
       <div
         className={`relative overflow-hidden rounded-2xl border p-4 backdrop-blur-xl shadow-sm transition-all duration-300 ${
           activeMainTab === "MY_DAY"
@@ -788,7 +1105,7 @@ export function TasksClientList({
         </form>
       </div>
 
-      {/* 3. Luxury Stats Overview Cards with Consistent Uniform Borders */}
+      {/* 3. Luxury Stats Overview Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* Card 1: Active Tasks */}
         <div
@@ -920,7 +1237,7 @@ export function TasksClientList({
               activeMainTab === "MY_DAY"
                 ? "Search my day tasks by title, instructions, or notes..."
                 : activeMainTab === "WORKSPACE"
-                ? "Search prospect tasks by company, title, assignee, or notes..."
+                ? "Search prospect tasks by company, title, assignee, or logs..."
                 : "Search all tasks across the workspace..."
             }
             value={searchQuery}
@@ -1031,7 +1348,7 @@ export function TasksClientList({
         </div>
       </div>
 
-      {/* 5. Clean, Luxury Task Cards Feed */}
+      {/* 5. Clean, Luxury Task Cards Feed with Multi-User Activity Logging & Multiple Screenshots */}
       <div className="space-y-3">
         {processedTasks.length === 0 ? (
           <div className="text-center py-16 px-6 rounded-3xl border border-dashed border-border/80 bg-card/50 dark:bg-zinc-900/50 backdrop-blur-md shadow-inner">
@@ -1065,19 +1382,23 @@ export function TasksClientList({
         ) : (
           processedTasks.map((t) => {
             const isExpanded = expandedTaskIds.has(t.id);
-            const hasDescription = Boolean(t.description && t.description.trim().length > 0);
             const isCompleted = t.status === "COMPLETED";
             const priorityConfig = getPriorityConfig(t.priority);
             const dueDateInfo = t.dueDate ? formatTaskDueDate(t.dueDate) : null;
             const createdAgo = formatCreatedDate(t.createdAt);
+            const isPersonal = isPersonalTask(t);
+            const isAllowedToComplete = canCompletePersonalTask(t);
             const currentNote = editingNotes[t.id] ?? t.description ?? "";
+            const currentSubTab = taskActiveTab[t.id] || "NOTES";
+            const logsForTask = taskLogsMap[t.id] || [];
+            const currentInlineImages = inlineLogImages[t.id] || [];
 
             return (
               <div
                 key={t.id}
                 className={`group relative rounded-2xl border transition-all duration-200 ${
                   isCompleted
-                    ? "bg-card/40 dark:bg-zinc-900/30 border-border/40 opacity-70 hover:opacity-100"
+                    ? "bg-card/40 dark:bg-zinc-900/30 border-border/40 opacity-75 hover:opacity-100"
                     : "bg-card/90 dark:bg-zinc-900/90 border-border/80 backdrop-blur-xl shadow-xs hover:border-primary/40 hover:shadow-md"
                 }`}
               >
@@ -1088,17 +1409,27 @@ export function TasksClientList({
                       {/* Tactile Checkbox Button */}
                       <button
                         type="button"
-                        onClick={(e) => handleToggleComplete(t, e)}
+                        onClick={(e) => handleCheckboxClick(t, e)}
                         className={`mt-0.5 h-5.5 w-5.5 rounded-lg border-2 flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0 ${
                           isCompleted
                             ? "bg-gradient-to-br from-emerald-500 to-teal-600 border-emerald-500 text-white shadow-md shadow-emerald-500/30 scale-105"
+                            : isPersonal && !isAllowedToComplete
+                            ? "border-border/60 bg-muted/40 opacity-50 cursor-not-allowed"
                             : "border-border/80 hover:border-primary bg-background/80 dark:bg-zinc-950/80 hover:scale-110 active:scale-95"
                         }`}
-                        title={isCompleted ? "Mark incomplete" : "Mark completed"}
+                        title={
+                          isCompleted
+                            ? "Click to reopen task"
+                            : isPersonal && !isAllowedToComplete
+                            ? "Personal task: Only the owner can mark as complete"
+                            : "Click to complete task & log details"
+                        }
                       >
-                        {isCompleted && (
+                        {isCompleted ? (
                           <Check className="h-3.5 w-3.5 stroke-[3.5] text-white animate-in zoom-in-75" />
-                        )}
+                        ) : isPersonal && !isAllowedToComplete ? (
+                          <Lock className="h-2.5 w-2.5 text-muted-foreground" />
+                        ) : null}
                       </button>
 
                       <div className="space-y-2 min-w-0 flex-1">
@@ -1123,21 +1454,21 @@ export function TasksClientList({
                             {priorityConfig.label}
                           </span>
 
-                          {/* Note / Details Expander Button */}
+                          {/* Toggle Expand Details & Logs */}
                           <button
                             type="button"
                             onClick={() => toggleTaskExpand(t.id, t.description)}
-                            className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
+                            className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-0.5 rounded-lg border transition-all cursor-pointer ${
                               isExpanded
                                 ? "bg-primary/10 text-primary border-primary/25"
-                                : hasDescription
-                                ? "bg-muted/80 text-foreground border-border/80 hover:border-primary/40"
                                 : "bg-muted/40 text-muted-foreground border-border/50 hover:text-foreground hover:bg-muted"
                             }`}
-                            title={isExpanded ? "Hide notes" : "View or edit notes"}
+                            title={isExpanded ? "Hide details" : "View notes & handover logs"}
                           >
-                            <FileText className="h-2.5 w-2.5" />
-                            <span>{isExpanded ? "Hide" : hasDescription ? "Notes" : "+ Note"}</span>
+                            <History className="h-2.5 w-2.5" />
+                            <span>
+                              {isExpanded ? "Hide" : logsForTask.length > 0 ? `Logs (${logsForTask.length})` : "Details"}
+                            </span>
                             {isExpanded ? (
                               <ChevronUp className="h-2.5 w-2.5" />
                             ) : (
@@ -1219,51 +1550,279 @@ export function TasksClientList({
                     </div>
                   </div>
 
-                  {/* Expandable Notes & Details Drawer with In-place Editing */}
+                  {/* Expandable Section: Segmented between "Notes & Instructions" and "Activity & Screenshots" */}
                   {isExpanded && (
-                    <div className="mt-3.5 pl-9 pr-1 pt-3 border-t border-border/60 animate-in fade-in slide-in-from-top-1 duration-200 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-foreground/80 uppercase tracking-wider">
-                          <FileText className="h-3.5 w-3.5 text-primary" />
-                          Notes & Details
+                    <div className="mt-4 pt-3 border-t border-border/60 animate-in fade-in duration-200 space-y-3">
+                      {/* Sub-tab navigation */}
+                      <div className="flex items-center justify-between pb-1 border-b border-border/40">
+                        <div className="flex items-center gap-1 bg-muted/40 dark:bg-zinc-950/60 p-0.5 rounded-lg border border-border/40">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setTaskActiveTab((prev) => ({ ...prev, [t.id]: "NOTES" }))
+                            }
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                              currentSubTab === "NOTES"
+                                ? "bg-card text-foreground shadow-xs"
+                                : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            <FileText className="h-3 w-3 text-primary" />
+                            <span>Notes & Instructions</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setTaskActiveTab((prev) => ({ ...prev, [t.id]: "LOGS" }))
+                            }
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                              currentSubTab === "LOGS"
+                                ? "bg-card text-foreground shadow-xs"
+                                : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            <History className="h-3 w-3 text-indigo-500" />
+                            <span>Activity & Screenshots</span>
+                            {logsForTask.length > 0 && (
+                              <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold">
+                                {logsForTask.length}
+                              </span>
+                            )}
+                          </button>
                         </div>
-                        <span className="text-[10px] text-muted-foreground">
-                          {currentNote.trim() ? "Edit notes below & click save" : "Add context, talking points, or follow-up notes"}
+
+                        <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                          {currentSubTab === "NOTES"
+                            ? "Edit task background or instructions"
+                            : "Collaborative multi-user history"}
                         </span>
                       </div>
 
-                      <div className="space-y-2">
-                        <Textarea
-                          rows={3}
-                          placeholder="Type notes, meeting action items, or phone context for this task..."
-                          value={currentNote}
-                          onChange={(e) =>
-                            setEditingNotes((n) => ({ ...n, [t.id]: e.target.value }))
-                          }
-                          className="text-xs bg-background/90 dark:bg-zinc-950/90 border-border/80 focus:border-primary leading-relaxed rounded-xl shadow-inner"
-                        />
+                      {/* Sub-tab 1: Notes & Instructions */}
+                      {currentSubTab === "NOTES" && (
+                        <div className="space-y-2">
+                          <Textarea
+                            rows={3}
+                            placeholder="Type notes, meeting action items, or phone context for this task..."
+                            value={currentNote}
+                            onChange={(e) =>
+                              setEditingNotes((n) => ({ ...n, [t.id]: e.target.value }))
+                            }
+                            className="text-xs bg-background/90 dark:bg-zinc-950/90 border-border/80 focus:border-primary leading-relaxed rounded-xl shadow-inner"
+                          />
 
-                        <div className="flex items-center justify-end gap-2 pt-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => toggleTaskExpand(t.id)}
-                            className="h-7.5 px-3 text-[11px] rounded-xl"
-                          >
-                            Close
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="gradient"
-                            onClick={() => handleSaveNote(t.id)}
-                            disabled={savingNoteId === t.id}
-                            className="h-7.5 px-4 text-[11px] gap-1.5 rounded-xl font-semibold shadow-xs"
-                          >
-                            <Save className="h-3 w-3" />
-                            <span>{savingNoteId === t.id ? "Saving..." : "Save Notes"}</span>
-                          </Button>
+                          <div className="flex items-center justify-end gap-2 pt-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => toggleTaskExpand(t.id)}
+                              className="h-7.5 px-3 text-[11px] rounded-xl"
+                            >
+                              Close
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="gradient"
+                              onClick={() => handleSaveNote(t.id)}
+                              disabled={savingNoteId === t.id}
+                              className="h-7.5 px-4 text-[11px] gap-1.5 rounded-xl font-semibold shadow-xs"
+                            >
+                              <Save className="h-3 w-3" />
+                              <span>{savingNoteId === t.id ? "Saving..." : "Save Notes"}</span>
+                            </Button>
+                          </div>
                         </div>
-                      </div>
+                      )}
+
+                      {/* Sub-tab 2: Activity Logs & Screenshots Timeline */}
+                      {currentSubTab === "LOGS" && (
+                        <div className="space-y-3">
+                          {/* Log List */}
+                          <div className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
+                            {logsForTask.length === 0 ? (
+                              <div className="text-center py-6 px-4 rounded-xl border border-dashed border-border/60 bg-muted/20 text-xs text-muted-foreground">
+                                No activity logs recorded yet. Add a handover note below.
+                              </div>
+                            ) : (
+                              logsForTask.map((log) => {
+                                const urls = parseAttachmentUrls(log.attachmentUrl);
+
+                                return (
+                                  <div
+                                    key={log.id}
+                                    className="p-3 rounded-xl bg-muted/40 dark:bg-zinc-950/60 border border-border/60 space-y-2"
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="h-5 w-5 rounded-full bg-gradient-to-tr from-primary/20 to-purple-500/20 text-[10px] font-bold text-primary flex items-center justify-center ring-1 ring-primary/20">
+                                          {log.userName.charAt(0).toUpperCase()}
+                                        </span>
+                                        <span className="text-xs font-semibold text-foreground">
+                                          {log.userName} {log.userId === currentUserId ? "(You)" : ""}
+                                        </span>
+                                        <Badge
+                                          variant="secondary"
+                                          className={`text-[9px] px-1.5 py-0 ${
+                                            log.action === "COMPLETED"
+                                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 font-bold"
+                                              : log.action === "CREATED"
+                                              ? "bg-primary/10 text-primary border border-primary/20"
+                                              : "bg-muted text-muted-foreground"
+                                          }`}
+                                        >
+                                          {log.action === "COMPLETED"
+                                            ? "Completed Task"
+                                            : log.action === "CREATED"
+                                            ? "Created Task"
+                                            : "Note / Update"}
+                                        </Badge>
+                                      </div>
+                                      <span className="text-[10px] text-muted-foreground">
+                                        {formatCreatedDate(log.createdAt)}
+                                      </span>
+                                    </div>
+
+                                    {log.note && (
+                                      <p className="text-xs text-foreground/90 leading-relaxed pl-7 whitespace-pre-wrap">
+                                        {log.note}
+                                      </p>
+                                    )}
+
+                                    {/* Multiple Attached Reference Screenshots Preview */}
+                                    {urls.length > 0 && (
+                                      <div className="pl-7 pt-1 flex flex-wrap gap-2">
+                                        {urls.map((imgUrl, idx) => (
+                                          <div
+                                            key={idx}
+                                            onClick={() =>
+                                              setLightboxGallery({
+                                                images: urls,
+                                                activeIndex: idx,
+                                              })
+                                            }
+                                            className="group/img relative inline-block cursor-pointer overflow-hidden rounded-xl border border-border/80 hover:border-primary/60 shadow-xs transition-all"
+                                          >
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                              src={imgUrl}
+                                              alt={`Attachment ${idx + 1}`}
+                                              className="h-24 w-28 object-cover group-hover/img:scale-105 transition-transform"
+                                            />
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 flex items-center justify-center gap-1 text-white text-[10px] font-medium transition-opacity">
+                                              <Eye className="h-3 w-3" />
+                                              <span>View ({idx + 1}/{urls.length})</span>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+
+                          {/* Quick Add Log & Multiple Screenshot Attachment Bar */}
+                          <div className="p-3 rounded-xl border border-border/80 bg-background/90 dark:bg-zinc-950/80 space-y-2">
+                            <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+                              <span>Add Progress Note / Handover</span>
+                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                                ⚡ WebP Auto-Compressed
+                              </span>
+                            </div>
+
+                            <Textarea
+                              rows={2}
+                              placeholder="Write a status update, client response, or handover note..."
+                              value={inlineNewLogText[t.id] || ""}
+                              onChange={(e) =>
+                                setInlineNewLogText((prev) => ({
+                                  ...prev,
+                                  [t.id]: e.target.value,
+                                }))
+                              }
+                              className="text-xs bg-card dark:bg-zinc-900 border-border/80 rounded-xl"
+                            />
+
+                            {/* Multiple Image Previews with live compression stats */}
+                            {currentInlineImages.length > 0 && (
+                              <div className="flex flex-wrap gap-2 p-2 rounded-lg bg-muted/40 border border-border/60">
+                                {currentInlineImages.map((img) => (
+                                  <div
+                                    key={img.id}
+                                    className="flex items-center gap-2 p-1.5 rounded-lg bg-card dark:bg-zinc-900 border border-border/80 shadow-2xs"
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={img.previewUrl}
+                                      alt="Preview"
+                                      className="h-9 w-9 object-cover rounded-md border"
+                                    />
+                                    <div className="min-w-0 max-w-[120px]">
+                                      <div className="text-[10px] font-semibold truncate text-foreground">
+                                        {img.fileName}
+                                      </div>
+                                      <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-medium">
+                                        {img.sizeKB} KB
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setInlineLogImages((prev) => ({
+                                          ...prev,
+                                          [t.id]: (prev[t.id] || []).filter((i) => i.id !== img.id),
+                                        }))
+                                      }
+                                      className="p-1 rounded-md text-muted-foreground hover:text-destructive cursor-pointer"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between pt-1">
+                              <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border/80 bg-card hover:bg-muted text-[11px] font-medium text-foreground cursor-pointer transition-colors">
+                                <ImageIcon className="h-3 w-3 text-primary" />
+                                <span>{currentInlineImages.length > 0 ? "+ Add More Images" : "Attach Screenshots"}</span>
+                                <input
+                                  type="file"
+                                  multiple
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    if (e.target.files) {
+                                      handleProcessMultipleFiles(e.target.files, (newImgs) =>
+                                        setInlineLogImages((prev) => ({
+                                          ...prev,
+                                          [t.id]: [...(prev[t.id] || []), ...newImgs],
+                                        }))
+                                      );
+                                    }
+                                  }}
+                                />
+                              </label>
+
+                              <Button
+                                size="sm"
+                                variant="gradient"
+                                onClick={() => handleAddInlineLog(t.id)}
+                                disabled={
+                                  addingLogTaskId === t.id ||
+                                  (!inlineNewLogText[t.id]?.trim() && currentInlineImages.length === 0)
+                                }
+                                className="h-7.5 px-3 text-[11px] gap-1 rounded-xl font-semibold shadow-xs"
+                              >
+                                <Send className="h-3 w-3" />
+                                <span>{addingLogTaskId === t.id ? "Posting..." : "Post Update"}</span>
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1273,7 +1832,270 @@ export function TasksClientList({
         )}
       </div>
 
-      {/* 6. Modal Create Task (Solid, Crisp Light & Dark theme) */}
+      {/* 6. Completion & Handover Log Dialog Modal (Multiple Screenshots Supported) */}
+      <Dialog open={Boolean(completingTask)} onOpenChange={(open) => !open && setCompletingTask(null)}>
+        <DialogContent className="max-w-md bg-white dark:bg-[#121218] border border-slate-200 dark:border-zinc-800 shadow-2xl rounded-3xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-500">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <DialogTitle className="text-lg font-bold text-slate-900 dark:text-zinc-100">
+                Complete & Log Task
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-slate-600 dark:text-zinc-400">
+              Mark this task as resolved, log your outcome note, and attach proof/screenshots.
+            </DialogDescription>
+          </DialogHeader>
+
+          {completingTask && (
+            <form onSubmit={handleConfirmCompletionWithLog} className="space-y-4 text-xs">
+              {/* Task Summary Banner */}
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-zinc-900/80 border border-slate-200/80 dark:border-zinc-800 space-y-1">
+                <div className="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                  {completingTask.title}
+                </div>
+                {completingTask.prospectName && (
+                  <div className="text-[11px] text-primary font-medium flex items-center gap-1">
+                    <Building2 className="h-3 w-3" />
+                    <span>{completingTask.prospectName}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Handover / Resolution Note */}
+              <div>
+                <label className="block mb-1.5 font-semibold text-slate-800 dark:text-zinc-200">
+                  Handover & Resolution Notes (Optional)
+                </label>
+                <Textarea
+                  rows={3}
+                  placeholder="e.g. Spoke with decision maker, confirmed next demo for Thursday. Logged in CRM timeline."
+                  value={completionNote}
+                  onChange={(e) => setCompletionNote(e.target.value)}
+                  className="text-xs bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-xl"
+                />
+              </div>
+
+              {/* Multiple Screenshots Attachment */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="font-semibold text-slate-800 dark:text-zinc-200">
+                    Attach Reference Screenshots / Proof
+                  </label>
+                  {completionImages.length > 0 && (
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                      {completionImages.length} image{completionImages.length > 1 ? "s" : ""} selected
+                    </span>
+                  )}
+                </div>
+
+                {completionImages.length > 0 ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2 max-h-[160px] overflow-y-auto pr-1">
+                      {completionImages.map((img) => (
+                        <div
+                          key={img.id}
+                          className="flex items-center gap-2 p-2 rounded-xl bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={img.previewUrl}
+                            alt="Screenshot Preview"
+                            className="h-10 w-10 object-cover rounded-lg border shadow-2xs shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] font-semibold truncate text-slate-900 dark:text-zinc-100">
+                              {img.fileName}
+                            </div>
+                            <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-medium">
+                              ⚡ {img.sizeKB} KB
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setCompletionImages((prev) => prev.filter((i) => i.id !== img.id))
+                            }
+                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive cursor-pointer"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => completionFileInputRef.current?.click()}
+                      className="w-full py-2 text-center text-xs font-semibold text-primary hover:underline cursor-pointer border border-dashed border-primary/30 rounded-xl bg-primary/5"
+                    >
+                      + Add More Screenshots
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => completionFileInputRef.current?.click()}
+                    className="border-2 border-dashed border-slate-300 dark:border-zinc-700 hover:border-primary/60 rounded-2xl p-4 text-center cursor-pointer transition-colors bg-slate-50/50 dark:bg-zinc-900/50 hover:bg-slate-50 dark:hover:bg-zinc-900"
+                  >
+                    <UploadCloud className="h-6 w-6 text-primary mx-auto mb-1" />
+                    <div className="text-xs font-semibold text-slate-800 dark:text-zinc-200">
+                      Click or drag screenshots here
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      PNG, JPG, WebP &bull; Select single or multiple images
+                    </div>
+                  </div>
+                )}
+
+                <input
+                  ref={completionFileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files) {
+                      handleProcessMultipleFiles(e.target.files, (newImgs) =>
+                        setCompletionImages((prev) => [...prev, ...newImgs])
+                      );
+                    }
+                  }}
+                />
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-border/40">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setCompletingTask(null)}
+                  className="text-xs rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="gradient"
+                  disabled={isCompletingSubmitting}
+                  className="text-xs rounded-xl font-semibold shadow-md shadow-emerald-500/20 bg-gradient-to-r from-emerald-500 to-teal-600 text-white cursor-pointer"
+                >
+                  <Check className="h-3.5 w-3.5 mr-1 stroke-[3]" />
+                  <span>{isCompletingSubmitting ? "Completing..." : "Complete & Save Log"}</span>
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* 7. Clean, Luxury Multi-Image Gallery Lightbox Modal with Arrows & Thumbnails */}
+      <Dialog open={Boolean(lightboxGallery)} onOpenChange={(open) => !open && setLightboxGallery(null)}>
+        <DialogContent className="max-w-4xl bg-black/95 backdrop-blur-2xl border border-zinc-800 p-3 sm:p-4 shadow-2xl rounded-3xl text-white">
+          {lightboxGallery && (
+            <div className="relative space-y-3 select-none">
+              {/* Top Toolbar */}
+              <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80 px-1">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs font-semibold text-zinc-200">
+                    Screenshot {lightboxGallery.activeIndex + 1} of {lightboxGallery.images.length}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <a
+                    href={lightboxGallery.images[lightboxGallery.activeIndex]}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors font-medium px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20"
+                  >
+                    <span>Open Original</span>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+
+                  {/* Prominent Easy-to-Click Close Button */}
+                  <button
+                    type="button"
+                    onClick={() => setLightboxGallery(null)}
+                    className="h-8 w-8 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-md hover:scale-105 border border-zinc-700"
+                    title="Close viewer (Esc)"
+                  >
+                    <X className="h-4 w-4 stroke-[2.5]" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Main Image Display with Left/Right Scroll Arrows */}
+              <div className="relative flex items-center justify-center p-2 overflow-hidden rounded-2xl bg-zinc-950/90 border border-zinc-800/60 min-h-[340px] group/viewer">
+                {/* Left Arrow Button */}
+                {lightboxGallery.images.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={handlePrevImage}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition-all cursor-pointer border border-white/20 shadow-xl hover:scale-110 active:scale-95"
+                    title="Previous image (←)"
+                  >
+                    <ChevronLeft className="h-6 w-6" />
+                  </button>
+                )}
+
+                {/* The Active Full-Scale Image */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  key={lightboxGallery.images[lightboxGallery.activeIndex]}
+                  src={lightboxGallery.images[lightboxGallery.activeIndex]}
+                  alt={`Screenshot ${lightboxGallery.activeIndex + 1}`}
+                  className="max-h-[68vh] w-auto max-w-full object-contain rounded-xl shadow-2xl animate-in fade-in duration-200"
+                />
+
+                {/* Right Arrow Button */}
+                {lightboxGallery.images.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={handleNextImage}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition-all cursor-pointer border border-white/20 shadow-xl hover:scale-110 active:scale-95"
+                    title="Next image (→)"
+                  >
+                    <ChevronRight className="h-6 w-6" />
+                  </button>
+                )}
+              </div>
+
+              {/* Bottom Thumbnail Strip for Multi-Image Gallery */}
+              {lightboxGallery.images.length > 1 && (
+                <div className="flex items-center justify-center gap-2 overflow-x-auto py-1 px-2 max-w-full scrollbar-none">
+                  {lightboxGallery.images.map((imgUrl, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() =>
+                        setLightboxGallery((prev) => (prev ? { ...prev, activeIndex: idx } : null))
+                      }
+                      className={`relative rounded-xl overflow-hidden border-2 transition-all cursor-pointer shrink-0 ${
+                        lightboxGallery.activeIndex === idx
+                          ? "border-primary ring-2 ring-primary/40 scale-105 shadow-md"
+                          : "border-zinc-800 opacity-60 hover:opacity-100 hover:border-zinc-600"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={imgUrl}
+                        alt={`Thumbnail ${idx + 1}`}
+                        className="h-12 w-16 object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* 8. Global Create Task Modal */}
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-white dark:bg-[#121218] border border-slate-200 dark:border-zinc-800 shadow-2xl rounded-3xl">
           <DialogHeader>
