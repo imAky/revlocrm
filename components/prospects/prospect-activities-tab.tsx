@@ -44,6 +44,7 @@ import {
   createActivityAction,
   deleteActivityAction,
   updateActivityAction,
+  deleteActivityAttachmentAction,
 } from "@/lib/actions/activities";
 
 export interface ActivityItem {
@@ -524,6 +525,22 @@ ${entries.join("\n\n")}`;
     await deleteActivityAction(actId);
   };
 
+  // Delete Individual Screenshot / Attachment from Activity
+  const handleDeleteActivityAttachment = async (actId: string, urlToDelete: string) => {
+    if (!confirm("Delete this attached screenshot?")) return;
+    const res = await deleteActivityAttachmentAction({
+      activityId: actId,
+      attachmentUrlToDelete: urlToDelete,
+    });
+    if (res.success) {
+      setActivitiesList((prev) =>
+        prev.map((a) =>
+          a.id === actId ? { ...a, attachmentUrl: res.attachmentUrl } : a
+        )
+      );
+    }
+  };
+
   const getTypeConfig = (type: string) => {
     const found = ACTIVITY_TYPES.find((t) => t.value.toUpperCase() === type.toUpperCase());
     return (
@@ -794,26 +811,38 @@ ${entries.join("\n\n")}`;
                 {attachments.length > 0 && (
                   <div className="pl-12 pt-1.5 flex flex-wrap gap-2.5">
                     {attachments.map((url, idx) => (
-                      <button
+                      <div
                         key={url}
-                        type="button"
-                        onClick={() =>
-                          setLightboxGallery({
-                            images: attachments,
-                            activeIndex: idx,
-                          })
-                        }
-                        className="relative group rounded-xl overflow-hidden border border-border/80 h-16 w-16 bg-muted hover:border-primary transition-all cursor-pointer shadow-xs"
+                        className="relative group/thumb rounded-xl overflow-hidden border border-border/80 h-16 w-16 bg-muted hover:border-primary transition-all shadow-xs"
                       >
                         <img
                           src={url}
                           alt={`Attachment ${idx + 1}`}
-                          className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+                          className="h-full w-full object-cover group-hover/thumb:scale-105 transition-transform"
                         />
-                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                        <div
+                          onClick={() =>
+                            setLightboxGallery({
+                              images: attachments,
+                              activeIndex: idx,
+                            })
+                          }
+                          className="absolute inset-0 bg-black/30 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center text-white transition-opacity cursor-pointer"
+                        >
                           <Eye className="h-4 w-4" />
                         </div>
-                      </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteActivityAttachment(act.id, url);
+                          }}
+                          className="absolute top-1 right-1 p-1 rounded-md bg-black/75 hover:bg-destructive text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity z-10 cursor-pointer"
+                          title="Delete screenshot"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}

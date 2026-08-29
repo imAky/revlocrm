@@ -97,3 +97,65 @@ export async function uploadTaskScreenshot(
     storageType: "CLOUDINARY",
   };
 }
+
+/**
+ * Reusable File & Media Upload function to Cloudinary for Prospect Resources
+ * Supports: Images, PDFs, and general documents.
+ */
+export async function uploadProspectMediaFile(
+  fileBuffer: Buffer,
+  fileName: string,
+  contentType = "image/png",
+  prospectId = "general"
+): Promise<{ url: string; bytes: number; format: string; storageType: "CLOUDINARY" }> {
+  const cld = getCloudinaryInstance();
+  const isImage = contentType.startsWith("image/");
+  const isPdf = contentType === "application/pdf" || fileName.toLowerCase().endsWith(".pdf");
+
+  const uploadResult = await new Promise<UploadApiResponse>((resolve, reject) => {
+    const uploadOptions: Record<string, any> = {
+      folder: `revlocrm/prospect-media/${prospectId}`,
+      resource_type: isImage ? "image" : isPdf ? "auto" : "raw",
+      public_id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
+    };
+
+    if (isImage) {
+      uploadOptions.transformation = [
+        {
+          fetch_format: "auto",
+          quality: "auto",
+        },
+      ];
+    }
+
+    const uploadStream = cld.uploader.upload_stream(
+      uploadOptions,
+      (error, result) => {
+        if (error || !result) {
+          reject(
+            new Error(
+              `Cloudinary media upload error: ${error?.message || "Empty upload response"}`
+            )
+          );
+        } else {
+          resolve(result);
+        }
+      }
+    );
+
+    uploadStream.end(fileBuffer);
+  });
+
+  let deliveryUrl = uploadResult.secure_url;
+  if (isImage && deliveryUrl && deliveryUrl.includes("/upload/")) {
+    deliveryUrl = deliveryUrl.replace("/upload/", "/upload/f_auto,q_auto/");
+  }
+
+  return {
+    url: deliveryUrl || uploadResult.url,
+    bytes: uploadResult.bytes || fileBuffer.length,
+    format: uploadResult.format || (isPdf ? "pdf" : "raw"),
+    storageType: "CLOUDINARY",
+  };
+}
+

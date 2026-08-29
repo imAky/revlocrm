@@ -18,6 +18,7 @@ import {
   X,
   Layers,
   Flame,
+  Compass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ const mainNavItems: NavItem[] = [
   { title: "Pipeline", href: "/pipeline", icon: GitPullRequest },
   { title: "Contacts", href: "/contacts", icon: Users2 },
   { title: "Tasks & Queue", href: "/tasks", icon: CalendarCheck2 },
+  { title: "Market Research", href: "/research", icon: Compass },
   { title: "Activities", href: "/activities", icon: History },
 ];
 

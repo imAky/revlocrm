@@ -575,3 +575,88 @@ export const auditLogs = pgTable(
     index("audit_logs_created_at_idx").on(table.createdAt),
   ]
 );
+
+// -----------------------------------------------------------------------------
+// PROSPECT MEDIA & RESOURCE ATTACHMENTS
+// -----------------------------------------------------------------------------
+
+export const prospectMedia = pgTable(
+  "prospect_media",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    prospectId: text("prospect_id")
+      .notNull()
+      .references(() => prospects.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    title: text("title").notNull(),
+    description: text("description"),
+    type: text("type").notNull(), // 'IMAGE' | 'DOCUMENT' | 'PDF' | 'LINK' | 'FIGMA' | 'DRIVE' | 'WEBSITE' | 'VIDEO' | 'OTHER'
+    url: text("url").notNull(),
+    fileSize: integer("file_size"),
+    mimeType: text("mime_type"),
+    thumbnailUrl: text("thumbnail_url"),
+    category: text("category").default("GENERAL").notNull(), // 'DESIGN' | 'PROPOSAL' | 'AUDIT' | 'CONTRACT' | 'RESEARCH' | 'ASSET' | 'GENERAL'
+    isPinned: boolean("is_pinned").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  },
+  (table) => [
+    index("pm_workspace_idx").on(table.workspaceId),
+    index("pm_prospect_idx").on(table.prospectId),
+    index("pm_type_idx").on(table.type),
+    index("pm_category_idx").on(table.category),
+    index("pm_pinned_idx").on(table.isPinned),
+  ]
+);
+
+// -----------------------------------------------------------------------------
+// MARKET RESEARCH & TARGET KEYWORDS
+// -----------------------------------------------------------------------------
+
+export const researchKeywords = pgTable(
+  "research_keywords",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    keyword: text("keyword").notNull(),
+    normalizedKeyword: text("normalized_keyword").notNull(),
+    niche: text("niche"),
+    city: text("city"),
+    state: text("state"),
+    country: text("country").default("US"),
+    status: text("status").default("PENDING").notNull(), // 'PENDING' | 'SEARCHED' | 'IN_PROGRESS' | 'FAVORITE' | 'ARCHIVED'
+    searchEngine: text("search_engine").default("GOOGLE_MAPS").notNull(), // 'GOOGLE_MAPS' | 'GOOGLE_SEARCH' | 'YELP' | 'LINKEDIN'
+    prospectsFoundCount: integer("prospects_found_count").default(0).notNull(),
+    notes: text("notes"),
+    lastSearchedAt: timestamp("last_searched_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  },
+  (table) => [
+    index("rk_workspace_idx").on(table.workspaceId),
+    index("rk_status_idx").on(table.status),
+    index("rk_niche_idx").on(table.niche),
+    index("rk_norm_kw_idx").on(table.normalizedKeyword),
+    index("rk_ws_norm_idx").on(table.workspaceId, table.normalizedKeyword),
+  ]
+);
+
+

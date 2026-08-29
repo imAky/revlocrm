@@ -54,6 +54,8 @@ import {
   completeTaskWithLogAction,
   reopenTaskAction,
   addTaskLogAction,
+  deleteTaskLogAttachmentAction,
+  deleteTaskLogAction,
   TaskLogItem,
 } from "@/lib/actions/tasks";
 import { TaskItem, UserOption } from "@/components/tasks/tasks-client-list";
@@ -560,6 +562,35 @@ export function ProspectTasksTab({
     await deleteTaskAction(taskId);
   };
 
+  // Delete Individual Screenshot / Attachment from Task Log
+  const handleDeleteLogAttachment = async (taskId: string, logId: string, urlToDelete: string) => {
+    if (!confirm("Delete this attached screenshot?")) return;
+    const res = await deleteTaskLogAttachmentAction({
+      logId,
+      attachmentUrlToDelete: urlToDelete,
+    });
+    if (res.success) {
+      setTaskLogsMap((prev) => ({
+        ...prev,
+        [taskId]: (prev[taskId] || []).map((l) =>
+          l.id === logId ? { ...l, attachmentUrl: res.attachmentUrl } : l
+        ),
+      }));
+    }
+  };
+
+  // Delete Task Log Entry
+  const handleDeleteLog = async (taskId: string, logId: string) => {
+    if (!confirm("Delete this log entry?")) return;
+    const res = await deleteTaskLogAction(logId);
+    if (res.success) {
+      setTaskLogsMap((prev) => ({
+        ...prev,
+        [taskId]: (prev[taskId] || []).filter((l) => l.id !== logId),
+      }));
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header & Controls */}
@@ -957,13 +988,23 @@ export function ProspectTasksTab({
                                         {log.action}
                                       </Badge>
                                     </div>
-                                    <span className="text-[10px] text-muted-foreground">
-                                      {new Date(log.createdAt).toLocaleDateString()} at{" "}
-                                      {new Date(log.createdAt).toLocaleTimeString([], {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </span>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[10px] text-muted-foreground">
+                                        {new Date(log.createdAt).toLocaleDateString()} at{" "}
+                                        {new Date(log.createdAt).toLocaleTimeString([], {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteLog(t.id, log.id)}
+                                        className="p-0.5 rounded text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                                        title="Delete Log Entry"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </button>
+                                    </div>
                                   </div>
 
                                   {log.note && (
@@ -976,26 +1017,38 @@ export function ProspectTasksTab({
                                   {attachments.length > 0 && (
                                     <div className="pl-7 pt-1 flex flex-wrap gap-2">
                                       {attachments.map((url, idx) => (
-                                        <button
+                                        <div
                                           key={url}
-                                          type="button"
-                                          onClick={() =>
-                                            setLightboxGallery({
-                                              images: attachments,
-                                              activeIndex: idx,
-                                            })
-                                          }
-                                          className="relative group rounded-lg overflow-hidden border border-border/80 h-14 w-14 bg-muted hover:border-primary transition-all cursor-pointer"
+                                          className="relative group/thumb rounded-lg overflow-hidden border border-border/80 h-14 w-14 bg-muted hover:border-primary transition-all"
                                         >
                                           <img
                                             src={url}
                                             alt={`Attachment ${idx + 1}`}
-                                            className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+                                            className="h-full w-full object-cover group-hover/thumb:scale-105 transition-transform"
                                           />
-                                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                                          <div
+                                            onClick={() =>
+                                              setLightboxGallery({
+                                                images: attachments,
+                                                activeIndex: idx,
+                                              })
+                                            }
+                                            className="absolute inset-0 bg-black/30 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center text-white transition-opacity cursor-pointer"
+                                          >
                                             <Eye className="h-3.5 w-3.5" />
                                           </div>
-                                        </button>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDeleteLogAttachment(t.id, log.id, url);
+                                            }}
+                                            className="absolute top-0.5 right-0.5 p-0.5 rounded bg-black/75 hover:bg-destructive text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity z-10 cursor-pointer"
+                                            title="Delete screenshot"
+                                          >
+                                            <Trash2 className="h-2.5 w-2.5" />
+                                          </button>
+                                        </div>
                                       ))}
                                     </div>
                                   )}
