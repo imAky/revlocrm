@@ -46,6 +46,7 @@ import { createTaskAction, updateTaskStatusAction, TaskLogItem } from "@/lib/act
 import { saveCustomFieldValueAction } from "@/lib/actions/custom-fields";
 import { ProspectTasksTab } from "./prospect-tasks-tab";
 import { ProspectActivitiesTab } from "./prospect-activities-tab";
+import { ProspectAiDossierModal } from "./prospect-ai-dossier-modal";
 
 export function ProspectDetailClient({
   prospect,
@@ -80,6 +81,7 @@ export function ProspectDetailClient({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [isDossierModalOpen, setIsDossierModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Custom field local values state
@@ -374,6 +376,16 @@ export function ProspectDetailClient({
                 </option>
               ))}
             </select>
+
+            <Button
+              size="sm"
+              variant="gradient"
+              onClick={() => setIsDossierModalOpen(true)}
+              className="gap-1.5 text-xs font-semibold rounded-xl shadow-xs"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>AI Prompt Summary (.MD)</span>
+            </Button>
 
             <Button
               size="sm"
@@ -1506,6 +1518,19 @@ export function ProspectDetailClient({
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* AI Prompt Summary & Intelligence Dossier Modal */}
+      <ProspectAiDossierModal
+        isOpen={isDossierModalOpen}
+        onClose={() => setIsDossierModalOpen(false)}
+        prospect={prospect}
+        contactsList={contactsList}
+        activitiesList={activitiesList}
+        tasksList={tasksList}
+        customFieldsList={customFieldsList}
+        customFieldValuesMap={customValues}
+        stageName={stages.find((s) => s.id === prospect.stageId)?.name}
+      />
     </div>
   );
 }
