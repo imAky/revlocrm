@@ -59,6 +59,8 @@ import {
   completeTaskWithLogAction,
   reopenTaskAction,
   addTaskLogAction,
+  deleteTaskLogAttachmentAction,
+  deleteTaskLogAction,
   TaskLogItem,
 } from "@/lib/actions/tasks";
 
@@ -685,6 +687,35 @@ export function TasksClientList({
       }
     } finally {
       setAddingLogTaskId(null);
+    }
+  };
+
+  // Delete Individual Screenshot / Attachment from Task Log
+  const handleDeleteLogAttachment = async (taskId: string, logId: string, urlToDelete: string) => {
+    if (!confirm("Delete this attached screenshot?")) return;
+    const res = await deleteTaskLogAttachmentAction({
+      logId,
+      attachmentUrlToDelete: urlToDelete,
+    });
+    if (res.success) {
+      setTaskLogsMap((prev) => ({
+        ...prev,
+        [taskId]: (prev[taskId] || []).map((l) =>
+          l.id === logId ? { ...l, attachmentUrl: res.attachmentUrl } : l
+        ),
+      }));
+    }
+  };
+
+  // Delete Task Log Entry
+  const handleDeleteLog = async (taskId: string, logId: string) => {
+    if (!confirm("Delete this log entry?")) return;
+    const res = await deleteTaskLogAction(logId);
+    if (res.success) {
+      setTaskLogsMap((prev) => ({
+        ...prev,
+        [taskId]: (prev[taskId] || []).filter((l) => l.id !== logId),
+      }));
     }
   };
 
@@ -1726,45 +1757,68 @@ export function TasksClientList({
                                             : "Note / Update"}
                                         </Badge>
                                       </div>
-                                      <span className="text-[10px] text-muted-foreground">
-                                        {formatCreatedDate(log.createdAt)}
-                                      </span>
-                                    </div>
-
-                                    {log.note && (
-                                      <p className="text-xs text-foreground/90 leading-relaxed pl-7 whitespace-pre-wrap">
-                                        {log.note}
-                                      </p>
-                                    )}
-
-                                    {/* Multiple Attached Reference Screenshots Preview */}
-                                    {urls.length > 0 && (
-                                      <div className="pl-7 pt-1 flex flex-wrap gap-2">
-                                        {urls.map((imgUrl, idx) => (
-                                          <div
-                                            key={idx}
-                                            onClick={() =>
-                                              setLightboxGallery({
-                                                images: urls,
-                                                activeIndex: idx,
-                                              })
-                                            }
-                                            className="group/img relative inline-block cursor-pointer overflow-hidden rounded-xl border border-border/80 hover:border-primary/60 shadow-xs transition-all"
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-[10px] text-muted-foreground">
+                                            {formatCreatedDate(log.createdAt)}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDeleteLog(t.id, log.id)}
+                                            className="p-0.5 rounded text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                                            title="Delete Log Entry"
                                           >
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img
-                                              src={imgUrl}
-                                              alt={`Attachment ${idx + 1}`}
-                                              className="h-24 w-28 object-cover group-hover/img:scale-105 transition-transform"
-                                            />
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 flex items-center justify-center gap-1 text-white text-[10px] font-medium transition-opacity">
-                                              <Eye className="h-3 w-3" />
-                                              <span>View ({idx + 1}/{urls.length})</span>
-                                            </div>
-                                          </div>
-                                        ))}
+                                            <Trash2 className="h-3 w-3" />
+                                          </button>
+                                        </div>
                                       </div>
-                                    )}
+
+                                      {log.note && (
+                                        <p className="text-xs text-foreground/90 leading-relaxed pl-7 whitespace-pre-wrap">
+                                          {log.note}
+                                        </p>
+                                      )}
+
+                                      {/* Multiple Attached Reference Screenshots Preview */}
+                                      {urls.length > 0 && (
+                                        <div className="pl-7 pt-1 flex flex-wrap gap-2">
+                                          {urls.map((imgUrl, idx) => (
+                                            <div
+                                              key={idx}
+                                              className="group/img relative inline-block overflow-hidden rounded-xl border border-border/80 hover:border-primary/60 shadow-xs transition-all"
+                                            >
+                                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                                              <img
+                                                src={imgUrl}
+                                                alt={`Attachment ${idx + 1}`}
+                                                className="h-24 w-28 object-cover group-hover/img:scale-105 transition-transform"
+                                              />
+                                              <div
+                                                onClick={() =>
+                                                  setLightboxGallery({
+                                                    images: urls,
+                                                    activeIndex: idx,
+                                                  })
+                                                }
+                                                className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 flex items-center justify-center gap-1 text-white text-[10px] font-medium transition-opacity cursor-pointer"
+                                              >
+                                                <Eye className="h-3 w-3" />
+                                                <span>View ({idx + 1}/{urls.length})</span>
+                                              </div>
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleDeleteLogAttachment(t.id, log.id, imgUrl);
+                                                }}
+                                                className="absolute top-1 right-1 p-1 rounded-md bg-black/75 hover:bg-destructive text-white opacity-0 group-hover/img:opacity-100 transition-opacity z-10 cursor-pointer"
+                                                title="Delete screenshot"
+                                              >
+                                                <Trash2 className="h-3 w-3" />
+                                              </button>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
                                   </div>
                                 );
                               })

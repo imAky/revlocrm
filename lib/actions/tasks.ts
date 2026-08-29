@@ -403,6 +403,12 @@ export async function updateTaskAction(input: UpdateTaskInput) {
 export async function deleteTaskAction(taskId: string) {
   const ctx = await requirePermission("tasks.delete");
 
+  const [existing] = await db
+    .select({ prospectId: tasks.prospectId })
+    .from(tasks)
+    .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, ctx.workspaceId)))
+    .limit(1);
+
   await db
     .delete(tasks)
     .where(
@@ -420,6 +426,78 @@ export async function deleteTaskAction(taskId: string) {
 
   revalidatePath("/tasks");
   revalidatePath("/dashboard");
+  if (existing?.prospectId) {
+    revalidatePath(`/prospects/${existing.prospectId}`);
+  }
 
   return { success: true };
 }
+
+/**
+ * Delete a specific screenshot/image attachment from a task log
+ */
+export async function deleteTaskLogAttachmentAction({
+  logId,
+  attachmentUrlToDelete,
+}: {
+  logId: string;
+  attachmentUrlToDelete: string;
+}) {
+  const ctx = await requireAuth();
+
+  const [log] = await db
+    .select({
+      id: taskLogs.id,
+      taskId: taskLogs.taskId,
+      attachmentUrl: taskLogs.attachmentUrl,
+    })
+    .from(taskLogs)
+    .where(and(eq(taskLogs.id, logId), eq(taskLogs.workspaceId, ctx.workspaceId)))
+    .limit(1);
+
+  if (!log || !log.attachmentUrl) {
+    return { error: "Log attachment not found" };
+  }
+
+  let currentUrls: string[] = [];
+  try {
+    if (log.attachmentUrl.startsWith("[")) {
+      currentUrls = JSON.parse(log.attachmentUrl);
+    } else {
+      currentUrls = [log.attachmentUrl];
+    }
+  } catch {
+    currentUrls = [log.attachmentUrl];
+  }
+
+  const remainingUrls = currentUrls.filter((u) => u !== attachmentUrlToDelete);
+  const newAttachmentUrl =
+    remainingUrls.length > 1
+      ? JSON.stringify(remainingUrls)
+      : remainingUrls.length === 1
+      ? remainingUrls[0]
+      : null;
+
+  await db
+    .update(taskLogs)
+    .set({ attachmentUrl: newAttachmentUrl })
+    .where(and(eq(taskLogs.id, logId), eq(taskLogs.workspaceId, ctx.workspaceId)));
+
+  revalidatePath("/tasks");
+  return { success: true, remainingUrls, attachmentUrl: newAttachmentUrl };
+}
+
+/**
+ * Delete a task log/comment entry
+ */
+export async function deleteTaskLogAction(logId: string) {
+  const ctx = await requireAuth();
+
+  await db
+    .delete(taskLogs)
+    .where(and(eq(taskLogs.id, logId), eq(taskLogs.workspaceId, ctx.workspaceId)));
+
+  revalidatePath("/tasks");
+  return { success: true };
+}
+

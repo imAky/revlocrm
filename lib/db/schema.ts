@@ -575,3 +575,46 @@ export const auditLogs = pgTable(
     index("audit_logs_created_at_idx").on(table.createdAt),
   ]
 );
+
+// -----------------------------------------------------------------------------
+// PROSPECT MEDIA & RESOURCE ATTACHMENTS
+// -----------------------------------------------------------------------------
+
+export const prospectMedia = pgTable(
+  "prospect_media",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    prospectId: text("prospect_id")
+      .notNull()
+      .references(() => prospects.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    title: text("title").notNull(),
+    description: text("description"),
+    type: text("type").notNull(), // 'IMAGE' | 'DOCUMENT' | 'PDF' | 'LINK' | 'FIGMA' | 'DRIVE' | 'WEBSITE' | 'VIDEO' | 'OTHER'
+    url: text("url").notNull(),
+    fileSize: integer("file_size"),
+    mimeType: text("mime_type"),
+    thumbnailUrl: text("thumbnail_url"),
+    category: text("category").default("GENERAL").notNull(), // 'DESIGN' | 'PROPOSAL' | 'AUDIT' | 'CONTRACT' | 'RESEARCH' | 'ASSET' | 'GENERAL'
+    isPinned: boolean("is_pinned").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  },
+  (table) => [
+    index("pm_workspace_idx").on(table.workspaceId),
+    index("pm_prospect_idx").on(table.prospectId),
+    index("pm_type_idx").on(table.type),
+    index("pm_category_idx").on(table.category),
+    index("pm_pinned_idx").on(table.isPinned),
+  ]
+);
+

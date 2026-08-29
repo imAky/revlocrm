@@ -197,3 +197,60 @@ export async function updateActivityAction(input: UpdateActivityInput) {
 
   return { success: true, attachmentUrl: finalAttachmentUrl };
 }
+
+/**
+ * Delete a specific screenshot/image attachment from an activity
+ */
+export async function deleteActivityAttachmentAction({
+  activityId,
+  attachmentUrlToDelete,
+}: {
+  activityId: string;
+  attachmentUrlToDelete: string;
+}) {
+  const ctx = await requirePermission("activities.edit");
+
+  const [existing] = await db
+    .select({
+      id: activities.id,
+      attachmentUrl: activities.attachmentUrl,
+      prospectId: activities.prospectId,
+    })
+    .from(activities)
+    .where(and(eq(activities.id, activityId), eq(activities.workspaceId, ctx.workspaceId)))
+    .limit(1);
+
+  if (!existing || !existing.attachmentUrl) {
+    return { error: "Activity attachment not found" };
+  }
+
+  let currentUrls: string[] = [];
+  try {
+    if (existing.attachmentUrl.startsWith("[")) {
+      currentUrls = JSON.parse(existing.attachmentUrl);
+    } else {
+      currentUrls = [existing.attachmentUrl];
+    }
+  } catch {
+    currentUrls = [existing.attachmentUrl];
+  }
+
+  const remainingUrls = currentUrls.filter((u) => u !== attachmentUrlToDelete);
+  const newAttachmentUrl =
+    remainingUrls.length > 1
+      ? JSON.stringify(remainingUrls)
+      : remainingUrls.length === 1
+      ? remainingUrls[0]
+      : null;
+
+  await db
+    .update(activities)
+    .set({ attachmentUrl: newAttachmentUrl })
+    .where(and(eq(activities.id, activityId), eq(activities.workspaceId, ctx.workspaceId)));
+
+  revalidatePath(`/prospects/${existing.prospectId}`);
+  revalidatePath("/activities");
+
+  return { success: true, remainingUrls, attachmentUrl: newAttachmentUrl };
+}
+

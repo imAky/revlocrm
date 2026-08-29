@@ -47,6 +47,8 @@ import { saveCustomFieldValueAction } from "@/lib/actions/custom-fields";
 import { ProspectTasksTab } from "./prospect-tasks-tab";
 import { ProspectActivitiesTab } from "./prospect-activities-tab";
 import { ProspectAiDossierModal } from "./prospect-ai-dossier-modal";
+import { ProspectMediaTab } from "./prospect-media-tab";
+import { ProspectMediaItem } from "@/lib/actions/media";
 
 export function ProspectDetailClient({
   prospect,
@@ -54,6 +56,7 @@ export function ProspectDetailClient({
   activitiesList,
   tasksList,
   taskLogsList = [],
+  mediaList = [],
   customFieldsList,
   customFieldValuesMap,
   stages,
@@ -66,6 +69,7 @@ export function ProspectDetailClient({
   activitiesList: any[];
   tasksList: any[];
   taskLogsList?: TaskLogItem[];
+  mediaList?: ProspectMediaItem[];
   customFieldsList: any[];
   customFieldValuesMap: Record<string, string>;
   stages: any[];
@@ -415,13 +419,14 @@ export function ProspectDetailClient({
       {/* Main Tabs Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="overflow-x-auto pb-1">
-          <TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-6 text-xs">
+          <TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-7 text-xs">
             <TabsTrigger value="overview" className="whitespace-nowrap">1. Overview & ICP</TabsTrigger>
             <TabsTrigger value="identity" className="whitespace-nowrap">2. Business Profile</TabsTrigger>
             <TabsTrigger value="digital" className="whitespace-nowrap">3. Digital Audit</TabsTrigger>
             <TabsTrigger value="contacts" className="whitespace-nowrap">4. Contacts ({contactsList.length})</TabsTrigger>
             <TabsTrigger value="timeline" className="whitespace-nowrap">5. Activities ({activitiesList.length})</TabsTrigger>
             <TabsTrigger value="tasks" className="whitespace-nowrap">6. Tasks ({tasksList.length})</TabsTrigger>
+            <TabsTrigger value="media" className="whitespace-nowrap">7. Media & Resources ({mediaList.length})</TabsTrigger>
           </TabsList>
         </div>
 
@@ -836,6 +841,14 @@ export function ProspectDetailClient({
             initialLogs={taskLogsList}
             workspaceUsers={workspaceUsers}
             currentUserId={currentUserId}
+          />
+        </TabsContent>
+
+        {/* 7. Tab: Media, Documents & Cloud Resources */}
+        <TabsContent value="media" className="space-y-4 pt-2">
+          <ProspectMediaTab
+            prospectId={prospect.id}
+            initialMedia={mediaList}
           />
         </TabsContent>
       </Tabs>
