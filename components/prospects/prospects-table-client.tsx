@@ -50,6 +50,8 @@ import {
 } from "@/lib/actions/prospects";
 import { ProspectCreateModal } from "./prospect-create-modal";
 import { ProspectAiDossierModal } from "./prospect-ai-dossier-modal";
+import { LeadScoreBreakdownPopover } from "@/components/scoring/lead-score-breakdown-popover";
+import { ScoringMethodologyModal } from "@/components/scoring/scoring-methodology-modal";
 
 export interface ProspectItem {
   id: string;
@@ -121,6 +123,7 @@ export function ProspectsTableClient({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [dossierProspect, setDossierProspect] = useState<any | null>(null);
+  const [isMethodologyOpen, setIsMethodologyOpen] = useState(false);
 
   // Distinct Filter Options
   const niches = useMemo(() => {
@@ -418,12 +421,24 @@ export function ProspectsTableClient({
               )}
             </Button>
 
+            {/* ICP Scoring Formula Methodology Button */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsMethodologyOpen(true)}
+              className="text-xs gap-1.5 h-10 px-3 font-semibold rounded-xl text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10 cursor-pointer shadow-2xs"
+              title="View full ICP Lead Scoring Formula & Weighting Matrix"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <span>ICP Formula</span>
+            </Button>
+
             {/* Add Prospect Modal Button */}
             <Button
               size="sm"
               variant="gradient"
               onClick={() => setIsCreateOpen(true)}
-              className="text-xs font-semibold gap-1.5 shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 active:scale-95 transition-all h-10 px-4 rounded-xl"
+              className="text-xs font-semibold gap-1.5 shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 active:scale-95 transition-all h-10 px-4 rounded-xl cursor-pointer"
             >
               <Plus className="h-4 w-4" />
               <span>Add Prospect</span>
@@ -720,18 +735,13 @@ export function ProspectsTableClient({
                       )}
                     </div>
                   </div>
-                  <Badge
-                    variant={
-                      p.leadGrade === "A+" || p.leadGrade === "A"
-                        ? "success"
-                        : p.leadGrade === "B"
-                        ? "info"
-                        : "secondary"
-                    }
-                    className="text-[10px] font-mono shrink-0"
-                  >
-                    Score: {p.leadScore} ({p.leadGrade})
-                  </Badge>
+                  <LeadScoreBreakdownPopover
+                    score={p.leadScore}
+                    grade={p.leadGrade}
+                    prospectName={p.name}
+                    scoringInput={p as any}
+                    showLabel
+                  />
                 </div>
 
                 <div className="text-xs space-y-1.5 text-muted-foreground pt-0.5">
@@ -980,20 +990,14 @@ export function ProspectsTableClient({
                         )}
                       </TableCell>
 
-                      {/* Lead Score & Grade */}
+                      {/* Lead Score & Grade with Interactive Breakdown */}
                       <TableCell>
-                        <Badge
-                          variant={
-                            p.leadGrade === "A+" || p.leadGrade === "A"
-                              ? "success"
-                              : p.leadGrade === "B"
-                              ? "info"
-                              : "secondary"
-                          }
-                          className="font-mono text-[11px] px-2 py-0.5"
-                        >
-                          {p.leadScore} ({p.leadGrade})
-                        </Badge>
+                        <LeadScoreBreakdownPopover
+                          score={p.leadScore}
+                          grade={p.leadGrade}
+                          prospectName={p.name}
+                          scoringInput={p as any}
+                        />
                       </TableCell>
 
                       {/* ICP Fit */}
@@ -1085,6 +1089,12 @@ export function ProspectsTableClient({
           stageName={dossierProspect.stageName || stages.find((s) => s.id === dossierProspect.stageId)?.name}
         />
       )}
+
+      {/* Global Scoring Methodology Explainer Modal */}
+      <ScoringMethodologyModal
+        open={isMethodologyOpen}
+        onOpenChange={setIsMethodologyOpen}
+      />
     </div>
   );
 }

@@ -21,6 +21,18 @@ export default function LoginPage() {
   const [countdown, setCountdown] = useState(600); // 10 minutes countdown
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlError = params.get("error");
+      if (urlError === "account_suspended" || urlError === "membership_inactive") {
+        setError("Access Denied: Your account in this workspace has been suspended by an administrator. Please contact your workspace admin.");
+      } else if (urlError === "google_cancelled") {
+        setError("Google sign-in was cancelled or failed. Please try again.");
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     let timer: any;
     if (otpStep === "CODE" && countdown > 0) {
       timer = setInterval(() => setCountdown((c) => c - 1), 1000);

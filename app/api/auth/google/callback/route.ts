@@ -113,7 +113,7 @@ export async function GET(request: Request) {
       .where(eq(invitations.id, inv.id));
   }
 
-  // 5. Get active workspace membership
+  // 5. Get active workspace membership or check if suspended
   let memberList = await db
     .select({
       workspaceId: memberships.workspaceId,
@@ -129,8 +129,26 @@ export async function GET(request: Request) {
     )
     .limit(1);
 
-  // If no workspace membership exists yet (new direct user sign up)
+  // If no active workspace membership exists
   if (memberList.length === 0) {
+    const suspendedList = await db
+      .select({
+        workspaceName: workspaces.name,
+      })
+      .from(memberships)
+      .innerJoin(workspaces, eq(memberships.workspaceId, workspaces.id))
+      .where(
+        and(
+          eq(memberships.userId, userId),
+          eq(memberships.status, "suspended")
+        )
+      )
+      .limit(1);
+
+    if (suspendedList.length > 0) {
+      return NextResponse.redirect(`${appUrl}/login?error=account_suspended`);
+    }
+
     const workspaceId = crypto.randomUUID();
     const workspaceName = `${name}'s Workspace`;
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Math.floor(1000 + Math.random() * 9000)}`;

@@ -105,6 +105,9 @@ const ACTIVITY_ICONS: Record<string, { icon: any; color: string }> = {
   NOTE: { icon: ActivityIcon, color: "text-blue-500 bg-blue-500/10 border-blue-500/20" },
 };
 
+import { LeadScoreBreakdownPopover } from "@/components/scoring/lead-score-breakdown-popover";
+import { ScoringMethodologyModal } from "@/components/scoring/scoring-methodology-modal";
+
 export function DashboardClient({
   allProspects,
   stages,
@@ -121,6 +124,7 @@ export function DashboardClient({
   currentUserName: string;
 }) {
   const [activeTab, setActiveTab] = useState<"ALL" | "HOT_LEADS" | "MY_QUEUE">("ALL");
+  const [isMethodologyOpen, setIsMethodologyOpen] = useState(false);
 
   // Core Calculations
   const totalProspects = allProspects.length;
@@ -274,12 +278,18 @@ export function DashboardClient({
         {/* Card 3: Hot Tier-A Leads */}
         <div className="rounded-3xl border border-border/70 bg-card/90 dark:bg-zinc-900/90 p-5 shadow-xs space-y-3 relative overflow-hidden group hover:border-primary/50 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Hot ICP Leads (A+ / A)
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <span>Hot ICP Leads (A+ / A)</span>
             </span>
-            <div className="h-9 w-9 rounded-2xl bg-amber-500/10 text-amber-500 dark:text-amber-400 flex items-center justify-center border border-amber-500/20 shadow-2xs">
-              <Flame className="h-4 w-4" />
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsMethodologyOpen(true)}
+              className="h-8 px-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 dark:text-amber-400 flex items-center gap-1 text-[11px] font-bold border border-amber-500/20 shadow-2xs transition-colors cursor-pointer"
+              title="Click to view full ICP Scoring Formula & Methodology"
+            >
+              <Flame className="h-3.5 w-3.5" />
+              <span>Formula</span>
+            </button>
           </div>
           <div>
             <div className="text-2xl sm:text-3xl font-extrabold text-foreground font-mono">
@@ -424,12 +434,12 @@ export function DashboardClient({
                       >
                         {p.name}
                       </Link>
-                      <Badge
-                        variant={p.leadGrade === "A+" || p.leadGrade === "A" ? "success" : "info"}
-                        className="text-[9px] px-1.5 py-0 font-mono font-bold shrink-0"
-                      >
-                        {p.leadScore} ({p.leadGrade})
-                      </Badge>
+                      <LeadScoreBreakdownPopover
+                        score={p.leadScore}
+                        grade={p.leadGrade}
+                        prospectName={p.name}
+                        size="sm"
+                      />
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
@@ -628,6 +638,12 @@ export function DashboardClient({
           </div>
         </div>
       </div>
+
+      {/* Full Methodology Explainer Modal */}
+      <ScoringMethodologyModal
+        open={isMethodologyOpen}
+        onOpenChange={setIsMethodologyOpen}
+      />
     </div>
   );
 }

@@ -213,7 +213,7 @@ export async function verifyOtpAction({
     }
   }
 
-  // 3. Find active membership or create new workspace
+  // 3. Find active membership or check if suspended
   let memberList = await db
     .select({
       workspaceId: memberships.workspaceId,
@@ -230,6 +230,27 @@ export async function verifyOtpAction({
     .limit(1);
 
   if (memberList.length === 0) {
+    // Check if user has a suspended membership
+    const suspendedList = await db
+      .select({
+        workspaceName: workspaces.name,
+      })
+      .from(memberships)
+      .innerJoin(workspaces, eq(memberships.workspaceId, workspaces.id))
+      .where(
+        and(
+          eq(memberships.userId, userId),
+          eq(memberships.status, "suspended")
+        )
+      )
+      .limit(1);
+
+    if (suspendedList.length > 0) {
+      return {
+        error: `Access Denied: Your membership in '${suspendedList[0].workspaceName}' has been suspended by an administrator. Please contact your workspace administrator.`,
+      };
+    }
+
     const wsId = crypto.randomUUID();
     const wsName = workspaceName?.trim() || `${userName}'s Workspace`;
     const slug = `${wsName.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Math.floor(1000 + Math.random() * 9000)}`;

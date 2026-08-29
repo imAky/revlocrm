@@ -48,6 +48,7 @@ import { ProspectTasksTab } from "./prospect-tasks-tab";
 import { ProspectActivitiesTab } from "./prospect-activities-tab";
 import { ProspectAiDossierModal } from "./prospect-ai-dossier-modal";
 import { ProspectMediaTab } from "./prospect-media-tab";
+import { LeadScoreBreakdownPopover } from "@/components/scoring/lead-score-breakdown-popover";
 import { ProspectMediaItem } from "@/lib/actions/media";
 
 export function ProspectDetailClient({
@@ -275,16 +276,14 @@ export function ProspectDetailClient({
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                   {prospect.name}
                 </h1>
-                <Badge
-                  variant={
-                    prospect.leadGrade === "A+" || prospect.leadGrade === "A"
-                      ? "success"
-                      : "info"
-                  }
-                  className="font-mono text-xs"
-                >
-                  Score: {prospect.leadScore} ({prospect.leadGrade})
-                </Badge>
+                <LeadScoreBreakdownPopover
+                  score={prospect.leadScore}
+                  grade={prospect.leadGrade}
+                  prospectName={prospect.name}
+                  scoringInput={editForm as any}
+                  size="md"
+                  showLabel
+                />
                 {prospect.businessStatus && (
                   <Badge variant="outline" className="text-[10px] uppercase font-mono">
                     {prospect.businessStatus}
