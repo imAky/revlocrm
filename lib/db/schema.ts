@@ -618,3 +618,45 @@ export const prospectMedia = pgTable(
   ]
 );
 
+// -----------------------------------------------------------------------------
+// MARKET RESEARCH & TARGET KEYWORDS
+// -----------------------------------------------------------------------------
+
+export const researchKeywords = pgTable(
+  "research_keywords",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    keyword: text("keyword").notNull(),
+    normalizedKeyword: text("normalized_keyword").notNull(),
+    niche: text("niche"),
+    city: text("city"),
+    state: text("state"),
+    country: text("country").default("US"),
+    status: text("status").default("PENDING").notNull(), // 'PENDING' | 'SEARCHED' | 'IN_PROGRESS' | 'FAVORITE' | 'ARCHIVED'
+    searchEngine: text("search_engine").default("GOOGLE_MAPS").notNull(), // 'GOOGLE_MAPS' | 'GOOGLE_SEARCH' | 'YELP' | 'LINKEDIN'
+    prospectsFoundCount: integer("prospects_found_count").default(0).notNull(),
+    notes: text("notes"),
+    lastSearchedAt: timestamp("last_searched_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  },
+  (table) => [
+    index("rk_workspace_idx").on(table.workspaceId),
+    index("rk_status_idx").on(table.status),
+    index("rk_niche_idx").on(table.niche),
+    index("rk_norm_kw_idx").on(table.normalizedKeyword),
+    index("rk_ws_norm_idx").on(table.workspaceId, table.normalizedKeyword),
+  ]
+);
+
+
