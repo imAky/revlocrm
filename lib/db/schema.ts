@@ -304,9 +304,9 @@ export const contacts = pgTable(
     workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
-    prospectId: text("prospect_id")
-      .notNull()
-      .references(() => prospects.id, { onDelete: "cascade" }),
+    prospectId: text("prospect_id").references(() => prospects.id, {
+      onDelete: "cascade",
+    }),
     firstName: text("first_name").notNull(),
     lastName: text("last_name"),
     fullName: text("full_name").notNull(),

@@ -7,7 +7,7 @@ import { requirePermission, recordAuditLog } from "@/lib/permissions/server-guar
 import { revalidatePath } from "next/cache";
 
 export interface ContactInput {
-  prospectId: string;
+  prospectId?: string | null;
   firstName: string;
   lastName?: string;
   jobTitle?: string;
@@ -24,8 +24,8 @@ export interface ContactInput {
 export async function createContactAction(input: ContactInput) {
   const ctx = await requirePermission("contacts.create");
 
-  if (!input.firstName || !input.prospectId) {
-    return { error: "First name and prospect ID are required" };
+  if (!input.firstName) {
+    return { error: "First name is required" };
   }
 
   const fullName = `${input.firstName} ${input.lastName || ""}`.trim();
@@ -34,7 +34,7 @@ export async function createContactAction(input: ContactInput) {
   await db.insert(contacts).values({
     id: contactId,
     workspaceId: ctx.workspaceId,
-    prospectId: input.prospectId,
+    prospectId: input.prospectId || null,
     firstName: input.firstName,
     lastName: input.lastName,
     fullName,
@@ -56,10 +56,12 @@ export async function createContactAction(input: ContactInput) {
     action: "contact.created",
     entityType: "CONTACT",
     entityId: contactId,
-    afterData: { fullName, prospectId: input.prospectId },
+    afterData: { fullName, prospectId: input.prospectId || null },
   });
 
-  revalidatePath(`/prospects/${input.prospectId}`);
+  if (input.prospectId) {
+    revalidatePath(`/prospects/${input.prospectId}`);
+  }
   revalidatePath("/contacts");
 
   return { success: true, contactId };
