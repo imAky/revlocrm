@@ -354,14 +354,14 @@ export function ProspectsTableClient({
       {/* Top Filter & Search Console */}
       <div className="rounded-2xl border border-border/80 bg-card/90 dark:bg-zinc-900/90 p-4 sm:p-5 shadow-xs backdrop-blur-xl space-y-3.5">
         {/* Row 1: Compound Search Bar with Target Field & Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 min-w-0">
           {/* Compound Search Bar */}
-          <div className="flex items-center flex-1 max-w-2xl gap-2">
+          <div className="flex items-center flex-1 min-w-0 gap-2 w-full">
             {/* Target Field Selector */}
             <select
               value={searchTargetField}
               onChange={(e) => setSearchTargetField(e.target.value as any)}
-              className="h-10 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 font-medium shrink-0 focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
+              className="h-10 px-2.5 sm:px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 font-medium shrink-0 focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs max-w-[120px] sm:max-w-[150px]"
             >
               <option value="ALL" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">All Fields</option>
               <option value="name" className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">Company Name</option>
@@ -372,7 +372,7 @@ export function ProspectsTableClient({
             </select>
 
             {/* Live Search Input */}
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/80" />
               <Input
                 placeholder={
@@ -390,7 +390,7 @@ export function ProspectsTableClient({
                 }
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 pr-9 text-xs h-10 bg-background/90 dark:bg-zinc-950/90 border-border/80 placeholder:text-muted-foreground/75 dark:placeholder:text-zinc-400 rounded-xl"
+                className="pl-10 pr-9 text-xs h-10 bg-background/90 dark:bg-zinc-950/90 border-border/80 placeholder:text-muted-foreground/75 dark:placeholder:text-zinc-400 rounded-xl w-full"
               />
               {search && (
                 <button
@@ -404,13 +404,13 @@ export function ProspectsTableClient({
           </div>
 
           {/* Quick Actions */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap justify-start lg:justify-end">
             {/* Advanced Filters Drawer Toggle */}
             <Button
               size="sm"
               variant={isAdvancedFiltersOpen || activeFilterCount > 0 ? "secondary" : "outline"}
               onClick={() => setIsAdvancedFiltersOpen(!isAdvancedFiltersOpen)}
-              className="text-xs gap-1.5 h-10 px-3.5 font-semibold rounded-xl"
+              className="text-xs gap-1.5 h-10 px-3 sm:px-3.5 font-semibold rounded-xl cursor-pointer"
             >
               <Filter className="h-3.5 w-3.5 text-primary" />
               <span>Filters</span>
@@ -426,11 +426,12 @@ export function ProspectsTableClient({
               size="sm"
               variant="outline"
               onClick={() => setIsMethodologyOpen(true)}
-              className="text-xs gap-1.5 h-10 px-3 font-semibold rounded-xl text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10 cursor-pointer shadow-2xs"
+              className="text-xs gap-1.5 h-10 px-2.5 sm:px-3 font-semibold rounded-xl text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10 cursor-pointer shadow-2xs"
               title="View full ICP Lead Scoring Formula & Weighting Matrix"
             >
               <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-              <span>ICP Formula</span>
+              <span className="hidden sm:inline">ICP Formula</span>
+              <span className="sm:hidden">Formula</span>
             </Button>
 
             {/* Add Prospect Modal Button */}
@@ -438,7 +439,7 @@ export function ProspectsTableClient({
               size="sm"
               variant="gradient"
               onClick={() => setIsCreateOpen(true)}
-              className="text-xs font-semibold gap-1.5 shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 active:scale-95 transition-all h-10 px-4 rounded-xl cursor-pointer"
+              className="text-xs font-bold gap-1.5 shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 active:scale-95 transition-all h-10 px-3.5 sm:px-4 rounded-xl cursor-pointer shrink-0"
             >
               <Plus className="h-4 w-4" />
               <span>Add Prospect</span>
