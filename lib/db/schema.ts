@@ -418,6 +418,38 @@ export const tasks = pgTable(
 );
 
 // -----------------------------------------------------------------------------
+// TASK LOGS & COLLABORATIVE AUDIT HISTORY
+// -----------------------------------------------------------------------------
+
+export const taskLogs = pgTable(
+  "task_logs",
+  {
+    id: text("id").primaryKey(),
+    taskId: text("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    action: text("action").notNull(), // 'CREATED' | 'COMPLETED' | 'REOPENED' | 'UPDATED' | 'COMMENT'
+    note: text("note"),
+    attachmentUrl: text("attachment_url"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  },
+  (table) => [
+    index("task_logs_task_idx").on(table.taskId),
+    index("task_logs_workspace_idx").on(table.workspaceId),
+    index("task_logs_user_idx").on(table.userId),
+    index("task_logs_created_at_idx").on(table.createdAt),
+  ]
+);
+
+// -----------------------------------------------------------------------------
 // DYNAMIC CUSTOM FIELDS ENGINE
 // -----------------------------------------------------------------------------
 
