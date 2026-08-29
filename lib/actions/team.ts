@@ -1,10 +1,12 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { invitations, memberships, userPermissions, roles, users } from "@/lib/db/schema";
+import { invitations, memberships, userPermissions, roles, users, workspaces } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requirePermission, recordAuditLog } from "@/lib/permissions/server-guards";
 import { revalidatePath } from "next/cache";
+import { sendWorkspaceInviteEmail } from "@/lib/email/resend";
+import { getAppBaseUrl } from "@/lib/utils/app-url";
 
 export async function inviteMemberAction({
   email,
@@ -19,6 +21,7 @@ export async function inviteMemberAction({
     return { error: "Email and role are required" };
   }
 
+  const cleanEmail = email.trim().toLowerCase();
   const token = crypto.randomUUID().replace(/-/g, "");
   const invitationId = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 days
@@ -26,12 +29,36 @@ export async function inviteMemberAction({
   await db.insert(invitations).values({
     id: invitationId,
     workspaceId: ctx.workspaceId,
-    email: email.trim().toLowerCase(),
+    email: cleanEmail,
     roleId,
     token,
     status: "pending",
     invitedById: ctx.userId,
     expiresAt,
+  });
+
+  // Query workspace and role name for email
+  const [ws] = await db
+    .select({ name: workspaces.name })
+    .from(workspaces)
+    .where(eq(workspaces.id, ctx.workspaceId))
+    .limit(1);
+
+  const [role] = await db
+    .select({ name: roles.name })
+    .from(roles)
+    .where(eq(roles.id, roleId))
+    .limit(1);
+
+  const appUrl = await getAppBaseUrl();
+  const inviteUrl = `${appUrl}/invite/${token}`;
+
+  await sendWorkspaceInviteEmail({
+    email: cleanEmail,
+    inviterName: ctx.name,
+    workspaceName: ws?.name || "Revlo Growth Lab",
+    roleName: role?.name || "Team Member",
+    inviteUrl,
   });
 
   await recordAuditLog({
@@ -41,7 +68,7 @@ export async function inviteMemberAction({
     action: "user.invited",
     entityType: "INVITATION",
     entityId: invitationId,
-    afterData: { email, roleId },
+    afterData: { email: cleanEmail, roleId },
   });
 
   revalidatePath("/team");

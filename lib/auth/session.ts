@@ -1,11 +1,11 @@
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 
-const JWT_SECRET = new TextEncoder().encode(
+export const JWT_SECRET = new TextEncoder().encode(
   process.env.SESSION_SECRET || "revlo-super-secure-production-ready-secret-key-32chars"
 );
 
-const SESSION_COOKIE_NAME = "revlo_session";
+export const SESSION_COOKIE_NAME = "revlo_session";
 
 export interface SessionPayload {
   userId: string;
@@ -13,6 +13,7 @@ export interface SessionPayload {
   name: string;
   workspaceId: string;
   role: string;
+  avatarUrl?: string | null;
 }
 
 export async function createSessionToken(payload: SessionPayload): Promise<string> {

@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import {
+  users,
   memberships,
   roles,
   rolePermissions,
@@ -19,6 +20,7 @@ export interface AuthenticatedContext {
   workspaceId: string;
   roleName: string;
   membershipId: string;
+  avatarUrl?: string | null;
   permissions: Set<string>;
 }
 
@@ -28,16 +30,19 @@ export async function requireAuth(): Promise<AuthenticatedContext> {
     redirect("/login");
   }
 
-  // Fetch membership & role to get live permissions
+  // Fetch membership & role & user details to get live permissions & avatar
   const memberList = await db
     .select({
       membershipId: memberships.id,
       roleId: memberships.roleId,
       status: memberships.status,
       roleName: roles.name,
+      avatarUrl: users.avatarUrl,
+      userName: users.name,
     })
     .from(memberships)
     .innerJoin(roles, eq(memberships.roleId, roles.id))
+    .innerJoin(users, eq(memberships.userId, users.id))
     .where(
       and(
         eq(memberships.workspaceId, session.workspaceId),
@@ -118,10 +123,11 @@ export async function requireAuth(): Promise<AuthenticatedContext> {
   return {
     userId: session.userId,
     email: session.email,
-    name: session.name,
+    name: member.userName || session.name,
     workspaceId: session.workspaceId,
     roleName: member.roleName,
     membershipId: member.membershipId,
+    avatarUrl: member.avatarUrl || session.avatarUrl || null,
     permissions: permSet,
   };
 }

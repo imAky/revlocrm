@@ -8,6 +8,7 @@ export function WorkspaceShell({
   userName,
   userEmail,
   roleName,
+  userAvatar = null,
   workspaceName,
   stages = [],
   workspaceUsers = [],
@@ -17,6 +18,7 @@ export function WorkspaceShell({
   userName: string;
   userEmail: string;
   roleName: string;
+  userAvatar?: string | null;
   workspaceName: string;
   stages?: { id: string; name: string }[];
   workspaceUsers?: { id: string; name: string }[];
@@ -44,6 +46,7 @@ export function WorkspaceShell({
           userName={userName}
           userEmail={userEmail}
           roleName={roleName}
+          userAvatar={userAvatar}
           stages={stages}
           workspaceUsers={workspaceUsers}
           customFields={customFields}

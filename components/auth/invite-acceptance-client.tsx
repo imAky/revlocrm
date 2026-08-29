@@ -2,29 +2,33 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Sparkles, ArrowRight, Mail, User, Building, CheckCircle2, RotateCw, Clock } from "lucide-react";
+import { Sparkles, ArrowRight, User, Mail, CheckCircle2, RotateCw, Clock, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { requestOtpAction, verifyOtpAction } from "@/lib/actions/auth";
 
-export default function SignupPage() {
+interface InviteData {
+  id: string;
+  email: string;
+  workspaceName: string;
+  roleName: string;
+  token: string;
+}
+
+export function InviteAcceptanceClient({ invite }: { invite: InviteData }) {
+  const [step, setStep] = useState<"DETAILS" | "CODE">("DETAILS");
+  const [name, setName] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // Form states
-  const [step, setStep] = useState<"DETAILS" | "VERIFY_CODE">("DETAILS");
-  const [name, setName] = useState("");
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [email, setEmail] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(600);
 
   useEffect(() => {
     let timer: any;
-    if (step === "VERIFY_CODE" && countdown > 0) {
+    if (step === "CODE" && countdown > 0) {
       timer = setInterval(() => setCountdown((c) => c - 1), 1000);
     }
     return () => clearInterval(timer);
@@ -36,21 +40,21 @@ export default function SignupPage() {
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
-  const handleGoogleSignup = () => {
-    window.location.href = "/api/auth/google";
+  const handleGoogleJoin = () => {
+    window.location.href = `/api/auth/google?returnUrl=/dashboard`;
   };
 
-  const handleSendSignupCode = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSendInviteCode = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!name.trim() || !workspaceName.trim() || !email.trim()) return;
+    if (!name.trim()) return;
 
     setError(null);
     setSuccessMsg(null);
     setLoading(true);
 
     const formData = new FormData();
-    formData.set("email", email.trim().toLowerCase());
-    formData.set("type", "signup");
+    formData.set("email", invite.email);
+    formData.set("type", "invite");
 
     const res = await requestOtpAction(formData);
 
@@ -60,10 +64,10 @@ export default function SignupPage() {
       return;
     }
 
-    if (res.success && res.email) {
-      setStep("VERIFY_CODE");
+    if (res.success) {
+      setStep("CODE");
       setCountdown(600);
-      setSuccessMsg(`Verification code sent to ${res.email}`);
+      setSuccessMsg(`We sent a 6-digit verification code to ${invite.email}`);
       if (res.devOtp) {
         setDevOtpHint(res.devOtp);
       }
@@ -71,16 +75,16 @@ export default function SignupPage() {
     setLoading(false);
   };
 
-  const handleVerifySignup = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleVerifyInvite = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
     const res = await verifyOtpAction({
-      email,
+      email: invite.email,
       otp: otpCode,
       name,
-      workspaceName,
+      inviteToken: invite.token,
     });
 
     if (res.error) {
@@ -96,34 +100,34 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col justify-center items-center p-4 relative overflow-hidden selection:bg-primary/20">
-      {/* Ambient background glows */}
+      {/* Ambient background glow */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[380px] bg-gradient-to-r from-violet-600/20 via-indigo-600/15 to-sky-500/20 blur-3xl -z-10 rounded-full pointer-events-none" />
 
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2.5 mb-3 group">
-            <div className="h-11 w-11 rounded-2xl bg-gradient-to-tr from-violet-600 via-indigo-600 to-sky-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-transform">
-              <Sparkles className="h-6 w-6 animate-pulse" />
-            </div>
-            <span className="text-2xl font-bold tracking-tight text-foreground">
-              Revlo
-            </span>
-          </Link>
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-violet-600 via-indigo-600 to-sky-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 mx-auto mb-3">
+            <Sparkles className="h-6 w-6 animate-pulse" />
+          </div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            Create your workspace
+            You've been invited!
           </h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            Get started with passwordless, secure B2B prospecting
+          <p className="text-xs text-muted-foreground mt-1.5 flex items-center justify-center gap-1.5 flex-wrap">
+            <span>Join</span>
+            <strong className="text-foreground font-semibold">{invite.workspaceName}</strong>
+            <span>as</span>
+            <Badge variant="purple" className="text-[10px] font-mono uppercase font-bold">
+              {invite.roleName}
+            </Badge>
           </p>
         </div>
 
         {/* Card */}
         <div className="rounded-3xl border border-slate-200/90 dark:border-zinc-800 bg-white/90 dark:bg-[#121218]/90 p-6 sm:p-7 backdrop-blur-2xl shadow-2xl space-y-5">
-          {/* 1. GOOGLE 1-CLICK SIGNUP */}
+          {/* 1. GOOGLE 1-CLICK JOIN */}
           <Button
             type="button"
-            onClick={handleGoogleSignup}
+            onClick={handleGoogleJoin}
             variant="outline"
             className="w-full h-11 rounded-2xl font-semibold text-xs flex items-center justify-center gap-3 border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-all cursor-pointer shadow-xs"
           >
@@ -145,7 +149,7 @@ export default function SignupPage() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
               />
             </svg>
-            <span className="font-bold">Sign up with Google</span>
+            <span className="font-bold">Join with Google Account</span>
           </Button>
 
           <div className="relative flex items-center justify-center">
@@ -168,12 +172,25 @@ export default function SignupPage() {
             </div>
           )}
 
-          {/* STEP 1: WORKSPACE & USER DETAILS */}
           {step === "DETAILS" ? (
-            <form onSubmit={handleSendSignupCode} className="space-y-3.5 text-xs">
+            <form onSubmit={handleSendInviteCode} className="space-y-3.5 text-xs">
               <div>
                 <label className="font-semibold text-foreground block mb-1">
-                  Full Name
+                  Invited Email
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    disabled
+                    value={invite.email}
+                    className="pl-9 h-10 rounded-xl bg-slate-100/80 dark:bg-zinc-900/80 border-slate-200 dark:border-zinc-800 font-mono text-xs text-muted-foreground cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-foreground block mb-1">
+                  Your Full Name
                 </label>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -183,39 +200,7 @@ export default function SignupPage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="pl-9 h-10 rounded-xl bg-slate-50/80 dark:bg-zinc-950/80 border-slate-200 dark:border-zinc-800 text-xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-foreground block mb-1">
-                  Workspace / Agency Name
-                </label>
-                <div className="relative">
-                  <Building className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    required
-                    placeholder="Acme Growth Lab"
-                    value={workspaceName}
-                    onChange={(e) => setWorkspaceName(e.target.value)}
-                    className="pl-9 h-10 rounded-xl bg-slate-50/80 dark:bg-zinc-950/80 border-slate-200 dark:border-zinc-800 text-xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-foreground block mb-1">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    type="email"
-                    required
-                    placeholder="name@company.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-9 h-10 rounded-xl bg-slate-50/80 dark:bg-zinc-950/80 border-slate-200 dark:border-zinc-800 text-xs"
+                    autoFocus
                   />
                 </div>
               </div>
@@ -226,18 +211,17 @@ export default function SignupPage() {
                 className="w-full font-bold gap-2 rounded-2xl h-11 shadow-md cursor-pointer mt-1"
                 disabled={loading}
               >
-                {loading ? "Sending Code..." : "Continue with Email Code"}
+                {loading ? "Sending Code..." : "Send Verification Code"}
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </form>
           ) : (
-            /* STEP 2: VERIFY CODE & LAUNCH */
-            <form onSubmit={handleVerifySignup} className="space-y-4 text-xs">
+            <form onSubmit={handleVerifyInvite} className="space-y-4 text-xs">
               <div className="flex items-center justify-between pb-1">
                 <div>
                   <span className="font-bold text-foreground block">Enter Verification Code</span>
                   <span className="text-[11px] text-muted-foreground truncate max-w-[240px] block">
-                    Sent to <strong className="text-foreground">{email}</strong>
+                    Sent to <strong className="text-foreground">{invite.email}</strong>
                   </span>
                 </div>
                 <Badge variant="purple" className="text-[10px] font-mono flex items-center gap-1">
@@ -278,7 +262,7 @@ export default function SignupPage() {
                 className="w-full h-11 font-bold gap-2 rounded-2xl shadow-md cursor-pointer"
                 disabled={loading || otpCode.length < 6}
               >
-                {loading ? "Launching Workspace..." : "Verify & Launch Workspace"}
+                {loading ? "Joining Workspace..." : "Verify & Join Workspace"}
                 <CheckCircle2 className="h-4 w-4" />
               </Button>
 
@@ -293,7 +277,7 @@ export default function SignupPage() {
                   className="text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-1 transition-colors"
                 >
                   <RotateCw className="h-3 w-3" />
-                  <span>Edit Details</span>
+                  <span>Edit Name</span>
                 </button>
 
                 <button
@@ -302,8 +286,8 @@ export default function SignupPage() {
                     setOtpCode("");
                     setCountdown(600);
                     const formData = new FormData();
-                    formData.set("email", email);
-                    formData.set("type", "signup");
+                    formData.set("email", invite.email);
+                    formData.set("type", "invite");
                     requestOtpAction(formData).then((res) => {
                       if (res.devOtp) setDevOtpHint(res.devOtp);
                       setSuccessMsg("New 6-digit code sent!");
@@ -317,14 +301,6 @@ export default function SignupPage() {
             </form>
           )}
         </div>
-
-        {/* Footer Link */}
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          Already have an account?{" "}
-          <Link href="/login" className="text-primary font-bold hover:underline">
-            Sign in
-          </Link>
-        </p>
       </div>
     </div>
   );
