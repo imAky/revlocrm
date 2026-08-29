@@ -80,15 +80,20 @@ export async function uploadTaskScreenshot(
   });
 
   // Generate the optimized HTTPS delivery URL with f_auto and q_auto parameters
-  const optimizedSecureUrl = cld.url(uploadResult.public_id, {
-    secure: true,
-    fetch_format: "auto",
-    quality: "auto",
-    version: uploadResult.version,
-  });
+  let deliveryUrl = uploadResult.secure_url;
+  if (deliveryUrl && deliveryUrl.includes("/upload/")) {
+    deliveryUrl = deliveryUrl.replace("/upload/", "/upload/f_auto,q_auto/");
+  } else if (!deliveryUrl) {
+    deliveryUrl = cld.url(uploadResult.public_id, {
+      secure: true,
+      fetch_format: "auto",
+      quality: "auto",
+      version: uploadResult.version,
+    });
+  }
 
   return {
-    url: optimizedSecureUrl,
+    url: deliveryUrl,
     storageType: "CLOUDINARY",
   };
 }

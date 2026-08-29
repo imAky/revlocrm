@@ -112,17 +112,39 @@ interface ProcessedImageData {
 }
 
 function parseAttachmentUrls(attachmentUrl?: string | null): string[] {
-  if (!attachmentUrl) return [];
-  try {
-    if (attachmentUrl.startsWith("[")) {
-      const parsed = JSON.parse(attachmentUrl);
-      if (Array.isArray(parsed)) return parsed.filter(Boolean);
-    }
-  } catch {}
-  if (attachmentUrl.includes(",")) {
-    return attachmentUrl.split(",").map((s) => s.trim()).filter(Boolean);
+  if (!attachmentUrl || typeof attachmentUrl !== "string") return [];
+  const trimmed = attachmentUrl.trim();
+  if (!trimmed) return [];
+
+  // 1. If stored as JSON array string: ["https://...", "https://..."]
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === "string" && Boolean(item));
+      }
+    } catch {}
   }
-  return [attachmentUrl];
+
+  // 2. If single valid URL or data URI, return directly as single item
+  if (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("data:") ||
+    trimmed.startsWith("/")
+  ) {
+    return [trimmed];
+  }
+
+  // 3. Fallback for legacy comma-separated lists (ensure all parts look like URLs)
+  if (trimmed.includes(",")) {
+    const parts = trimmed.split(",").map((s) => s.trim()).filter(Boolean);
+    if (parts.length > 1 && parts.every((p) => p.startsWith("http") || p.startsWith("/"))) {
+      return parts;
+    }
+  }
+
+  return [trimmed];
 }
 
 export function TasksClientList({
@@ -156,12 +178,16 @@ export function TasksClientList({
   // Task active sub-tab inside card: "NOTES" | "LOGS"
   const [taskActiveTab, setTaskActiveTab] = useState<Record<string, "NOTES" | "LOGS">>({});
 
-  // Dynamic In-memory Task Logs cache
+  // Dynamic In-memory Task Logs cache (sorted newest first)
   const [taskLogsMap, setTaskLogsMap] = useState<Record<string, TaskLogItem[]>>(() => {
     const map: Record<string, TaskLogItem[]> = {};
     initialLogs.forEach((log) => {
       if (!map[log.taskId]) map[log.taskId] = [];
       map[log.taskId].push(log);
+    });
+    // Ensure newest first (descending by createdAt)
+    Object.keys(map).forEach((k) => {
+      map[k].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     });
     return map;
   });
@@ -581,7 +607,7 @@ export function TasksClientList({
 
         setTaskLogsMap((prev) => ({
           ...prev,
-          [completingTask.id]: [...(prev[completingTask.id] || []), newLog],
+          [completingTask.id]: [newLog, ...(prev[completingTask.id] || [])],
         }));
 
         setCompletingTask(null);
@@ -629,7 +655,7 @@ export function TasksClientList({
 
         setTaskLogsMap((prev) => ({
           ...prev,
-          [taskId]: [...(prev[taskId] || []), newLog],
+          [taskId]: [newLog, ...(prev[taskId] || [])],
         }));
 
         setInlineNewLogText((prev) => ({ ...prev, [taskId]: "" }));

@@ -358,6 +358,7 @@ export const activities = pgTable(
     description: text("description"),
     outcome: text("outcome"),
     nextAction: text("next_action"),
+    attachmentUrl: text("attachment_url"),
     performedAt: timestamp("performed_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
