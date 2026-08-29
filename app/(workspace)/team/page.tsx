@@ -52,6 +52,7 @@ export default async function TeamPage() {
 
   return (
     <TeamClient
+      currentUserId={ctx.userId}
       members={members}
       invitationsList={invitationsList}
       rolesList={rolesList}

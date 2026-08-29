@@ -2,43 +2,37 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Sparkles, Shield, UserCheck, ArrowRight, Mail, KeyRound, CheckCircle2, RotateCw, Clock } from "lucide-react";
+import { Sparkles, ArrowRight, User, Mail, CheckCircle2, RotateCw, Clock, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { demoLoginAction, requestOtpAction, verifyOtpAction } from "@/lib/actions/auth";
+import { requestOtpAction, verifyOtpAction } from "@/lib/actions/auth";
 
-export default function LoginPage() {
+interface InviteData {
+  id: string;
+  email: string;
+  workspaceName: string;
+  roleName: string;
+  token: string;
+}
+
+export function InviteAcceptanceClient({ invite }: { invite: InviteData }) {
+  const [step, setStep] = useState<"DETAILS" | "CODE">("DETAILS");
+  const [name, setName] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // OTP workflow states
-  const [otpStep, setOtpStep] = useState<"EMAIL" | "CODE">("EMAIL");
-  const [email, setEmail] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(600); // 10 minutes countdown
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const urlError = params.get("error");
-      if (urlError === "account_suspended" || urlError === "membership_inactive") {
-        setError("Access Denied: Your account in this workspace has been suspended by an administrator. Please contact your workspace admin.");
-      } else if (urlError === "google_cancelled") {
-        setError("Google sign-in was cancelled or failed. Please try again.");
-      }
-    }
-  }, []);
+  const [countdown, setCountdown] = useState(600);
 
   useEffect(() => {
     let timer: any;
-    if (otpStep === "CODE" && countdown > 0) {
+    if (step === "CODE" && countdown > 0) {
       timer = setInterval(() => setCountdown((c) => c - 1), 1000);
     }
     return () => clearInterval(timer);
-  }, [otpStep, countdown]);
+  }, [step, countdown]);
 
   const formatCountdown = () => {
     const mins = Math.floor(countdown / 60);
@@ -46,19 +40,22 @@ export default function LoginPage() {
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
-  // Google OAuth 1-Click
-  const handleGoogleLogin = () => {
-    window.location.href = "/api/auth/google";
+  const handleGoogleJoin = () => {
+    window.location.href = `/api/auth/google?returnUrl=/dashboard`;
   };
 
-  // Request 6-digit OTP code
-  const handleSendCode = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSendInviteCode = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!name.trim()) return;
+
     setError(null);
     setSuccessMsg(null);
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
+    const formData = new FormData();
+    formData.set("email", invite.email);
+    formData.set("type", "invite");
+
     const res = await requestOtpAction(formData);
 
     if (res.error) {
@@ -67,11 +64,10 @@ export default function LoginPage() {
       return;
     }
 
-    if (res.success && res.email) {
-      setEmail(res.email);
-      setOtpStep("CODE");
+    if (res.success) {
+      setStep("CODE");
       setCountdown(600);
-      setSuccessMsg(`We sent a 6-digit login code to ${res.email}`);
+      setSuccessMsg(`We sent a 6-digit verification code to ${invite.email}`);
       if (res.devOtp) {
         setDevOtpHint(res.devOtp);
       }
@@ -79,15 +75,16 @@ export default function LoginPage() {
     setLoading(false);
   };
 
-  // Verify 6-digit OTP code
-  const handleVerifyCode = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleVerifyInvite = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
     const res = await verifyOtpAction({
-      email,
+      email: invite.email,
       otp: otpCode,
+      name,
+      inviteToken: invite.token,
     });
 
     if (res.error) {
@@ -101,48 +98,36 @@ export default function LoginPage() {
     }
   };
 
-  // Demo Persona 1-Click Login
-  const handleDemo = async (role: "admin" | "researcher") => {
-    setError(null);
-    setLoading(true);
-    const res = await demoLoginAction(role);
-    if (res?.error) {
-      setError(res.error);
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col justify-center items-center p-4 relative overflow-hidden selection:bg-primary/20">
-      {/* Dynamic Ambient Background Glows */}
+      {/* Ambient background glow */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[380px] bg-gradient-to-r from-violet-600/20 via-indigo-600/15 to-sky-500/20 blur-3xl -z-10 rounded-full pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-[300px] h-[300px] bg-indigo-500/10 blur-3xl -z-10 rounded-full pointer-events-none" />
 
       <div className="w-full max-w-md">
-        {/* Brand Logo Header */}
+        {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2.5 mb-3 group">
-            <div className="h-11 w-11 rounded-2xl bg-gradient-to-tr from-violet-600 via-indigo-600 to-sky-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-transform">
-              <Sparkles className="h-6 w-6 animate-pulse" />
-            </div>
-            <span className="text-2xl font-bold tracking-tight text-foreground">
-              Revlo
-            </span>
-          </Link>
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-violet-600 via-indigo-600 to-sky-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 mx-auto mb-3">
+            <Sparkles className="h-6 w-6 animate-pulse" />
+          </div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            Sign in to Revlo
+            You've been invited!
           </h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            Fast, collaborative B2B prospect research and pipeline management
+          <p className="text-xs text-muted-foreground mt-1.5 flex items-center justify-center gap-1.5 flex-wrap">
+            <span>Join</span>
+            <strong className="text-foreground font-semibold">{invite.workspaceName}</strong>
+            <span>as</span>
+            <Badge variant="purple" className="text-[10px] font-mono uppercase font-bold">
+              {invite.roleName}
+            </Badge>
           </p>
         </div>
 
-        {/* Auth Glass Card */}
+        {/* Card */}
         <div className="rounded-3xl border border-slate-200/90 dark:border-zinc-800 bg-white/90 dark:bg-[#121218]/90 p-6 sm:p-7 backdrop-blur-2xl shadow-2xl space-y-5">
-          {/* 1. GOOGLE 1-CLICK SSO */}
+          {/* 1. GOOGLE 1-CLICK JOIN */}
           <Button
             type="button"
-            onClick={handleGoogleLogin}
+            onClick={handleGoogleJoin}
             variant="outline"
             className="w-full h-11 rounded-2xl font-semibold text-xs flex items-center justify-center gap-3 border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-all cursor-pointer shadow-xs"
           >
@@ -164,10 +149,9 @@ export default function LoginPage() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
               />
             </svg>
-            <span className="font-bold">Continue with Google</span>
+            <span className="font-bold">Join with Google Account</span>
           </Button>
 
-          {/* Divider */}
           <div className="relative flex items-center justify-center">
             <div className="border-t border-slate-200 dark:border-zinc-800 w-full" />
             <span className="bg-white dark:bg-[#121218] px-3 text-[10px] text-muted-foreground uppercase tracking-widest font-semibold absolute">
@@ -175,14 +159,12 @@ export default function LoginPage() {
             </span>
           </div>
 
-          {/* Error Alert */}
           {error && (
             <div className="p-3 rounded-2xl bg-destructive/15 border border-destructive/30 text-destructive text-xs font-medium animate-in fade-in duration-150">
               {error}
             </div>
           )}
 
-          {/* Success Notification */}
           {successMsg && (
             <div className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-medium flex items-center gap-2 animate-in fade-in duration-150">
               <CheckCircle2 className="h-4 w-4 shrink-0" />
@@ -190,21 +172,34 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* 2. PASSWORDLESS EMAIL OTP FLOW */}
-          {otpStep === "EMAIL" ? (
-            <form onSubmit={handleSendCode} className="space-y-4 text-xs">
+          {step === "DETAILS" ? (
+            <form onSubmit={handleSendInviteCode} className="space-y-3.5 text-xs">
               <div>
-                <label className="font-semibold text-foreground block mb-1.5">
-                  Email Address
+                <label className="font-semibold text-foreground block mb-1">
+                  Invited Email
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
-                    name="email"
-                    type="email"
+                    disabled
+                    value={invite.email}
+                    className="pl-9 h-10 rounded-xl bg-slate-100/80 dark:bg-zinc-900/80 border-slate-200 dark:border-zinc-800 font-mono text-xs text-muted-foreground cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-foreground block mb-1">
+                  Your Full Name
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
                     required
-                    placeholder="name@company.com"
-                    className="pl-9 h-11 rounded-2xl bg-slate-50/80 dark:bg-zinc-950/80 border-slate-200 dark:border-zinc-800 text-xs"
+                    placeholder="Sarah Connor"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="pl-9 h-10 rounded-xl bg-slate-50/80 dark:bg-zinc-950/80 border-slate-200 dark:border-zinc-800 text-xs"
                     autoFocus
                   />
                 </div>
@@ -213,20 +208,20 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 variant="gradient"
-                className="w-full h-11 font-bold gap-2 rounded-2xl shadow-md cursor-pointer"
+                className="w-full font-bold gap-2 rounded-2xl h-11 shadow-md cursor-pointer mt-1"
                 disabled={loading}
               >
-                {loading ? "Sending Magic Code..." : "Send 6-Digit Login Code"}
+                {loading ? "Sending Code..." : "Send Verification Code"}
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </form>
           ) : (
-            <form onSubmit={handleVerifyCode} className="space-y-4 text-xs">
+            <form onSubmit={handleVerifyInvite} className="space-y-4 text-xs">
               <div className="flex items-center justify-between pb-1">
                 <div>
                   <span className="font-bold text-foreground block">Enter Verification Code</span>
                   <span className="text-[11px] text-muted-foreground truncate max-w-[240px] block">
-                    Sent to <strong className="text-foreground">{email}</strong>
+                    Sent to <strong className="text-foreground">{invite.email}</strong>
                   </span>
                 </div>
                 <Badge variant="purple" className="text-[10px] font-mono flex items-center gap-1">
@@ -267,7 +262,7 @@ export default function LoginPage() {
                 className="w-full h-11 font-bold gap-2 rounded-2xl shadow-md cursor-pointer"
                 disabled={loading || otpCode.length < 6}
               >
-                {loading ? "Verifying..." : "Verify & Sign In"}
+                {loading ? "Joining Workspace..." : "Verify & Join Workspace"}
                 <CheckCircle2 className="h-4 w-4" />
               </Button>
 
@@ -275,16 +270,14 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setOtpStep("EMAIL");
+                    setStep("DETAILS");
                     setOtpCode("");
                     setDevOtpHint(null);
-                    setError(null);
-                    setSuccessMsg(null);
                   }}
                   className="text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-1 transition-colors"
                 >
                   <RotateCw className="h-3 w-3" />
-                  <span>Change Email</span>
+                  <span>Edit Name</span>
                 </button>
 
                 <button
@@ -292,9 +285,9 @@ export default function LoginPage() {
                   onClick={() => {
                     setOtpCode("");
                     setCountdown(600);
-                    // Re-trigger send
                     const formData = new FormData();
-                    formData.set("email", email);
+                    formData.set("email", invite.email);
+                    formData.set("type", "invite");
                     requestOtpAction(formData).then((res) => {
                       if (res.devOtp) setDevOtpHint(res.devOtp);
                       setSuccessMsg("New 6-digit code sent!");
@@ -307,52 +300,7 @@ export default function LoginPage() {
               </div>
             </form>
           )}
-
-          {/* 3. QUICK 1-CLICK DEMO PERSONAS */}
-          <div className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-zinc-900/60 border border-slate-200/70 dark:border-zinc-800 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-indigo-500 animate-spin-slow" />
-                Instant Demo Access
-              </span>
-              <span className="text-[10px] text-muted-foreground">Pre-seeded personas</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleDemo("admin")}
-                disabled={loading}
-                className="flex items-center justify-center gap-1.5 text-xs rounded-xl border-indigo-500/30 hover:border-indigo-500/60 hover:bg-indigo-500/10 text-foreground cursor-pointer font-semibold"
-              >
-                <Shield className="h-3.5 w-3.5 text-indigo-500" />
-                <span>Admin View</span>
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleDemo("researcher")}
-                disabled={loading}
-                className="flex items-center justify-center gap-1.5 text-xs rounded-xl border-sky-500/30 hover:border-sky-500/60 hover:bg-sky-500/10 text-foreground cursor-pointer font-semibold"
-              >
-                <UserCheck className="h-3.5 w-3.5 text-sky-500" />
-                <span>Researcher</span>
-              </Button>
-            </div>
-          </div>
         </div>
-
-        {/* Footer Link */}
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          Don't have a workspace yet?{" "}
-          <Link href="/signup" className="text-primary font-bold hover:underline">
-            Create workspace
-          </Link>
-        </p>
       </div>
     </div>
   );

@@ -44,6 +44,7 @@ export default async function WorkspaceLayout({
       userName={ctx.name}
       userEmail={ctx.email}
       roleName={ctx.roleName}
+      userAvatar={ctx.avatarUrl}
       workspaceName={workspaceName}
       stages={stagesList}
       workspaceUsers={usersList}

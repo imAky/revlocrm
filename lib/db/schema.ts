@@ -41,7 +41,7 @@ export const users = pgTable(
     id: text("id").primaryKey(),
     email: text("email").notNull().unique(),
     name: text("name").notNull(),
-    passwordHash: text("password_hash").notNull(),
+    passwordHash: text("password_hash"),
     avatarUrl: text("avatar_url"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
@@ -51,6 +51,24 @@ export const users = pgTable(
       .notNull(),
   },
   (table) => [index("users_email_idx").on(table.email)]
+);
+
+export const authOtps = pgTable(
+  "auth_otps",
+  {
+    id: text("id").primaryKey(),
+    email: text("email").notNull(),
+    otp: text("otp").notNull(),
+    type: text("type").default("login").notNull(), // 'login' | 'signup'
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  },
+  (table) => [
+    index("auth_otps_email_idx").on(table.email),
+    index("auth_otps_created_idx").on(table.createdAt),
+  ]
 );
 
 // -----------------------------------------------------------------------------

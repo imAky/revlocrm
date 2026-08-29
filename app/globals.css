@@ -98,3 +98,56 @@ body {
 .glow-emerald {
   box-shadow: 0 0 50px -10px hsla(160, 84%, 39%, 0.18);
 }
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 25s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes fade-slide-3d {
+  0% {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px) perspective(1000px) rotateX(2.5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0) perspective(1000px) rotateX(0deg);
+  }
+}
+
+.animate-3d-in {
+  animation: fade-slide-3d 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes gradient-border {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient-border {
+  background-size: 300% 300%;
+  animation: gradient-border 6s ease infinite;
+}
+
+

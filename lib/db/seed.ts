@@ -5,25 +5,97 @@ import {
   roles,
   permissions,
   rolePermissions,
+  userPermissions,
   memberships,
   pipelineStages,
   prospects,
   contacts,
   activities,
   tasks,
+  taskLogs,
+  auditLogs,
   customFields,
   customFieldOptions,
   customFieldValues,
+  researchKeywords,
+  authOtps,
+  invitations,
 } from "./schema";
 import { hashPassword } from "../auth/password";
 import { CAPABILITIES, DEFAULT_ROLE_PERMISSIONS } from "../permissions/capabilities";
 import { calculateLeadScore } from "../scoring/lead-scorer";
+import { sql } from "drizzle-orm";
 
-export async function seedDatabase() {
-  console.log("🌱 Starting Revlo CRM Seed...");
+export async function seedDatabase(cleanFirst: boolean = true) {
+  console.log("🌱 Starting Comprehensive Revlo CRM Reset & Seed...");
+
+  if (cleanFirst) {
+    console.log("🧹 Cleaning up existing database tables...");
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "prospect_media" (
+        "id" text PRIMARY KEY,
+        "workspace_id" text NOT NULL,
+        "prospect_id" text NOT NULL,
+        "user_id" text,
+        "title" text NOT NULL,
+        "description" text,
+        "type" text NOT NULL,
+        "url" text NOT NULL,
+        "file_size" integer,
+        "mime_type" text,
+        "thumbnail_url" text,
+        "category" text NOT NULL DEFAULT 'GENERAL',
+        "is_pinned" boolean NOT NULL DEFAULT false,
+        "created_at" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS "research_keywords" (
+        "id" text PRIMARY KEY,
+        "workspace_id" text NOT NULL,
+        "user_id" text,
+        "keyword" text NOT NULL,
+        "normalized_keyword" text NOT NULL,
+        "niche" text,
+        "city" text,
+        "state" text,
+        "country" text DEFAULT 'US',
+        "status" text NOT NULL DEFAULT 'PENDING',
+        "search_engine" text NOT NULL DEFAULT 'GOOGLE_MAPS',
+        "prospects_found_count" integer NOT NULL DEFAULT 0,
+        "notes" text,
+        "last_searched_at" timestamp with time zone,
+        "created_at" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      DELETE FROM custom_field_values;
+      DELETE FROM custom_field_options;
+      DELETE FROM custom_fields;
+      DELETE FROM task_logs;
+      DELETE FROM tasks;
+      DELETE FROM activities;
+      DELETE FROM prospect_media;
+      DELETE FROM contacts;
+      DELETE FROM prospects;
+      DELETE FROM research_keywords;
+      DELETE FROM audit_logs;
+      DELETE FROM invitations;
+      DELETE FROM user_permissions;
+      DELETE FROM memberships;
+      DELETE FROM pipeline_stages;
+      DELETE FROM role_permissions;
+      DELETE FROM roles;
+      DELETE FROM permissions;
+      DELETE FROM auth_otps;
+      DELETE FROM users;
+      DELETE FROM workspaces;
+    `);
+    console.log("✨ All previous data cleared cleanly.");
+  }
 
   // 1. Seed Permissions
-  console.log("Inserting permissions...");
+  console.log("1️⃣ Inserting core capability permissions...");
   for (const permKey of Object.values(CAPABILITIES)) {
     const parts = permKey.split(".");
     const category = parts[0] || "general";
@@ -41,7 +113,7 @@ export async function seedDatabase() {
   }
 
   // 2. Seed System Roles
-  console.log("Inserting system roles...");
+  console.log("2️⃣ Inserting system roles...");
   const adminRoleId = "role_admin";
   const salesRoleId = "role_sales";
   const researcherRoleId = "role_researcher";
@@ -71,7 +143,7 @@ export async function seedDatabase() {
     .onConflictDoNothing();
 
   // 3. Link Role Permissions
-  console.log("Linking role permissions...");
+  console.log("3️⃣ Linking role permissions...");
   for (const [roleName, permList] of Object.entries(DEFAULT_ROLE_PERMISSIONS)) {
     const roleId =
       roleName === "admin"
@@ -93,7 +165,7 @@ export async function seedDatabase() {
 
   // 4. Create Workspace
   const workspaceId = "ws_revlo_default";
-  console.log("Inserting workspace...");
+  console.log("4️⃣ Inserting default workspace...");
   await db
     .insert(workspaces)
     .values({
@@ -103,8 +175,8 @@ export async function seedDatabase() {
     })
     .onConflictDoNothing();
 
-  // 5. Create Pipeline Stages
-  console.log("Inserting pipeline stages...");
+  // 5. Create 13 Pipeline Stages
+  console.log("5️⃣ Inserting 13 pipeline stages...");
   const stageDefs = [
     { key: "researching", name: "Researching", color: "slate", isWon: false, isLost: false },
     { key: "qualified", name: "Qualified", color: "blue", isWon: false, isLost: false },
@@ -145,8 +217,8 @@ export async function seedDatabase() {
       .onConflictDoNothing();
   }
 
-  // 6. Create Seed Users & Memberships
-  console.log("Inserting demo users...");
+  // 6. Create Seed Users & Active Memberships
+  console.log("6️⃣ Inserting Sample Admin & Researcher demo accounts...");
   const adminId = "user_admin_demo";
   const researcherId = "user_researcher_demo";
 
@@ -192,7 +264,7 @@ export async function seedDatabase() {
     .onConflictDoNothing();
 
   // 7. Seed Custom Fields
-  console.log("Inserting dynamic custom fields...");
+  console.log("7️⃣ Inserting dynamic custom fields...");
   const techStackFieldId = "cf_tech_stack";
   const adSpendFieldId = "cf_ad_spend";
   const hasMarketerFieldId = "cf_has_marketer";
@@ -247,20 +319,20 @@ export async function seedDatabase() {
     ])
     .onConflictDoNothing();
 
-  // 8. Seed Sample Realistic Prospects
-  console.log("Inserting rich sample prospects...");
+  // 8. Seed 16 Rich Realistic B2B Prospects Across Varied Niches & Grades
+  console.log("8️⃣ Inserting 16 comprehensive sample prospects with contacts, activities, and tasks...");
   const sampleProspectsData = [
     {
       id: "prospect_northstar_roofing",
-      name: "Northstar Roofing & Solar Demo",
+      name: "Northstar Roofing & Solar",
       niche: "Roofing & Construction",
-      website: "https://northstar-roofing-demo.example.com",
-      googleMapsUrl: "https://maps.google.com/?q=Northstar+Roofing+Demo",
+      website: "https://northstar-roofing.com",
+      googleMapsUrl: "https://maps.google.com/?q=Northstar+Roofing+Austin",
       city: "Austin",
       state: "TX",
       country: "USA",
       phone: "+1 (512) 555-0142",
-      email: "info@northstar-roofing-demo.example.com",
+      email: "info@northstar-roofing.com",
       googleRating: "4.80",
       reviewCount: 94,
       websiteExists: true,
@@ -268,20 +340,20 @@ export async function seedDatabase() {
       mobileUx: "POOR",
       ctaQuality: "POOR",
       quoteBookingFlow: "No instant estimation tool; slow email form only",
-      trustSignals: "BBB A+ rating badge, GAF Master Elite badge",
+      trustSignals: "BBB A+ rating badge, GAF Master Elite certified",
       seoVisibility: "Ranking #8 locally for 'commercial roofing Austin'",
       icpFit: "HIGH",
       abilityToPay: "HIGH",
       urgency: "HIGH",
       recurringPotential: "MEDIUM",
-      buyingSignals: "Recently raised hiring budget for marketing; complaints on slow contact form",
-      mainOpportunity: "High-converting funnel overhaul + Google Local Services ad optimization",
+      buyingSignals: "Recently raised hiring budget for marketing; slow lead response time",
+      mainOpportunity: "High-converting funnel overhaul + Google Local Services Ads optimization",
       dealValue: "18500.00",
       stageKey: "qualified",
       assignedToId: adminId,
       createdById: researcherId,
       notes: "Met owner briefly at Austin Home Expo. High desire to double commercial inbound leads.",
-      researchNotes: "Site takes 4.2s to load on mobile. Missing clear phone click-to-call in hero.",
+      researchNotes: "Site takes 4.2s to load on mobile. Missing clear phone click-to-call in hero banner.",
       contacts: [
         {
           id: "cnt_ns_1",
@@ -290,7 +362,7 @@ export async function seedDatabase() {
           fullName: "Marcus Vance",
           jobTitle: "Founder & Managing Director",
           role: "Executive Decision Maker",
-          email: "marcus@northstar-roofing-demo.example.com",
+          email: "marcus@northstar-roofing.com",
           phone: "+1 (512) 555-0143",
           linkedInUrl: "https://linkedin.com/in/demo-marcus-vance",
           preferredChannel: "PHONE",
@@ -301,15 +373,15 @@ export async function seedDatabase() {
     },
     {
       id: "prospect_apex_hvac",
-      name: "Apex Commercial HVAC Systems Demo",
+      name: "Apex Commercial HVAC Systems",
       niche: "HVAC & Mechanical",
-      website: "https://apex-hvac-systems-demo.example.com",
-      googleMapsUrl: "https://maps.google.com/?q=Apex+HVAC+Demo",
+      website: "https://apex-hvac-systems.com",
+      googleMapsUrl: "https://maps.google.com/?q=Apex+HVAC+Denver",
       city: "Denver",
       state: "CO",
       country: "USA",
       phone: "+1 (303) 555-0199",
-      email: "sales@apex-hvac-demo.example.com",
+      email: "sales@apex-hvac-systems.com",
       googleRating: "4.90",
       reviewCount: 142,
       websiteExists: true,
@@ -318,7 +390,7 @@ export async function seedDatabase() {
       ctaQuality: "FAIR",
       quoteBookingFlow: "Basic contact form, no emergency dispatch booking",
       trustSignals: "NATE certified technicians, 25 years in Colorado",
-      seoVisibility: "Top 3 for Denver HVAC maintenance",
+      seoVisibility: "Top 3 for Denver commercial HVAC maintenance",
       icpFit: "HIGH",
       abilityToPay: "HIGH",
       urgency: "MEDIUM",
@@ -339,7 +411,7 @@ export async function seedDatabase() {
           fullName: "Elena Reyes",
           jobTitle: "VP of Operations",
           role: "Co-Owner",
-          email: "elena@apex-hvac-demo.example.com",
+          email: "elena@apex-hvac-systems.com",
           phone: "+1 (303) 555-0198",
           linkedInUrl: "https://linkedin.com/in/demo-elena-reyes",
           preferredChannel: "EMAIL",
@@ -350,15 +422,15 @@ export async function seedDatabase() {
     },
     {
       id: "prospect_summit_dental",
-      name: "Summit Premium Dental Specialists Demo",
+      name: "Summit Premium Dental Specialists",
       niche: "Healthcare & Dental",
-      website: "https://summit-dental-demo.example.com",
-      googleMapsUrl: "https://maps.google.com/?q=Summit+Dental+Demo",
+      website: "https://summit-dental-care.com",
+      googleMapsUrl: "https://maps.google.com/?q=Summit+Dental+Seattle",
       city: "Seattle",
       state: "WA",
       country: "USA",
       phone: "+1 (206) 555-0177",
-      email: "care@summit-dental-demo.example.com",
+      email: "care@summit-dental-care.com",
       googleRating: "4.70",
       reviewCount: 88,
       websiteExists: true,
@@ -388,7 +460,7 @@ export async function seedDatabase() {
           fullName: "Dr. Julian Chen",
           jobTitle: "Lead Orthodontist & Practice Owner",
           role: "Owner",
-          email: "julian.chen@summit-dental-demo.example.com",
+          email: "julian.chen@summit-dental-care.com",
           phone: "+1 (206) 555-0176",
           preferredChannel: "EMAIL",
           isDecisionMaker: true,
@@ -397,15 +469,15 @@ export async function seedDatabase() {
     },
     {
       id: "prospect_horizon_solar",
-      name: "Horizon Clean Solar Energy Demo",
+      name: "Horizon Clean Solar Energy",
       niche: "Clean Energy & Solar",
-      website: "https://horizon-solar-demo.example.com",
-      googleMapsUrl: "https://maps.google.com/?q=Horizon+Solar+Demo",
+      website: "https://horizon-solar-energy.com",
+      googleMapsUrl: "https://maps.google.com/?q=Horizon+Solar+Phoenix",
       city: "Phoenix",
       state: "AZ",
       country: "USA",
       phone: "+1 (602) 555-0123",
-      email: "hello@horizon-solar-demo.example.com",
+      email: "hello@horizon-solar-energy.com",
       googleRating: "4.60",
       reviewCount: 65,
       websiteExists: true,
@@ -435,7 +507,7 @@ export async function seedDatabase() {
           fullName: "David Kowalski",
           jobTitle: "Chief Revenue Officer",
           role: "Decision Maker",
-          email: "david@horizon-solar-demo.example.com",
+          email: "david@horizon-solar-energy.com",
           phone: "+1 (602) 555-0124",
           linkedInUrl: "https://linkedin.com/in/demo-david-kowalski",
           preferredChannel: "LINKEDIN",
@@ -445,15 +517,15 @@ export async function seedDatabase() {
     },
     {
       id: "prospect_coastal_logistics",
-      name: "Coastal Freight & Logistics Demo",
+      name: "Coastal Freight & Logistics",
       niche: "Transportation & Supply Chain",
-      website: "https://coastal-freight-demo.example.com",
-      googleMapsUrl: "https://maps.google.com/?q=Coastal+Freight+Demo",
+      website: "https://coastal-freight.com",
+      googleMapsUrl: "https://maps.google.com/?q=Coastal+Freight+Savannah",
       city: "Savannah",
       state: "GA",
       country: "USA",
       phone: "+1 (912) 555-0188",
-      email: "dispatch@coastal-freight-demo.example.com",
+      email: "dispatch@coastal-freight.com",
       googleRating: "4.40",
       reviewCount: 38,
       websiteExists: true,
@@ -483,7 +555,7 @@ export async function seedDatabase() {
           fullName: "Robert Sterling",
           jobTitle: "VP of Business Development",
           role: "Executive",
-          email: "rsterling@coastal-freight-demo.example.com",
+          email: "rsterling@coastal-freight.com",
           phone: "+1 (912) 555-0189",
           preferredChannel: "PHONE",
           isDecisionMaker: true,
@@ -492,15 +564,15 @@ export async function seedDatabase() {
     },
     {
       id: "prospect_vanguard_security",
-      name: "Vanguard Integrated Security Demo",
+      name: "Vanguard Integrated Security",
       niche: "Commercial Security & Surveillance",
-      website: "https://vanguard-security-demo.example.com",
-      googleMapsUrl: "https://maps.google.com/?q=Vanguard+Security+Demo",
+      website: "https://vanguard-security.com",
+      googleMapsUrl: "https://maps.google.com/?q=Vanguard+Security+Chicago",
       city: "Chicago",
       state: "IL",
       country: "USA",
       phone: "+1 (312) 555-0155",
-      email: "info@vanguard-security-demo.example.com",
+      email: "info@vanguard-security.com",
       googleRating: "4.95",
       reviewCount: 110,
       websiteExists: true,
@@ -530,9 +602,481 @@ export async function seedDatabase() {
           fullName: "Rachel Novak",
           jobTitle: "Chief Marketing Officer",
           role: "Decision Maker",
-          email: "rachel.novak@vanguard-security-demo.example.com",
+          email: "rachel.novak@vanguard-security.com",
           phone: "+1 (312) 555-0156",
           preferredChannel: "EMAIL",
+          isDecisionMaker: true,
+        },
+      ],
+    },
+    {
+      id: "prospect_elevate_medspa",
+      name: "Elevate Aesthetics & MedSpa",
+      niche: "Aesthetics & MedSpa",
+      website: "https://elevate-medspa-miami.com",
+      googleMapsUrl: "https://maps.google.com/?q=Elevate+MedSpa+Miami",
+      city: "Miami",
+      state: "FL",
+      country: "USA",
+      phone: "+1 (305) 555-0133",
+      email: "concierge@elevate-medspa-miami.com",
+      googleRating: "4.85",
+      reviewCount: 175,
+      websiteExists: true,
+      websiteQuality: "EXCELLENT",
+      mobileUx: "EXCELLENT",
+      ctaQuality: "GOOD",
+      quoteBookingFlow: "Direct Mindbody booking link",
+      trustSignals: "Allergan Top 50 Injector, Board Certified Medical Director",
+      seoVisibility: "Dominates South Beach aesthetic searches",
+      icpFit: "HIGH",
+      abilityToPay: "HIGH",
+      urgency: "HIGH",
+      recurringPotential: "HIGH",
+      buyingSignals: "Launching high-ticket body contouring suites next quarter",
+      mainOpportunity: "VIP Membership recurring revenue funnel + high-roller campaign",
+      dealValue: "28000.00",
+      stageKey: "engaged",
+      assignedToId: researcherId,
+      createdById: researcherId,
+      notes: "Lead injector is enthusiastic about VIP membership program.",
+      researchNotes: "Instagram has 45k followers but zero lead capture mechanism.",
+      contacts: [
+        {
+          id: "cnt_elevate_1",
+          firstName: "Dr. Sofia",
+          lastName: "Navarro",
+          fullName: "Dr. Sofia Navarro",
+          jobTitle: "Medical Director & Co-Founder",
+          role: "Owner",
+          email: "sofia@elevate-medspa-miami.com",
+          phone: "+1 (305) 555-0134",
+          preferredChannel: "PHONE",
+          isDecisionMaker: true,
+        },
+      ],
+    },
+    {
+      id: "prospect_sterling_law",
+      name: "Sterling & Sterling Corporate Law",
+      niche: "Legal Services & Corporate Law",
+      website: "https://sterling-law-ny.com",
+      googleMapsUrl: "https://maps.google.com/?q=Sterling+Law+New+York",
+      city: "New York",
+      state: "NY",
+      country: "USA",
+      phone: "+1 (212) 555-0166",
+      email: "contact@sterling-law-ny.com",
+      googleRating: "4.75",
+      reviewCount: 52,
+      websiteExists: true,
+      websiteQuality: "GOOD",
+      mobileUx: "FAIR",
+      ctaQuality: "FAIR",
+      quoteBookingFlow: "Schedule confidential consultation form",
+      trustSignals: "Super Lawyers 2024, Chambers USA ranked",
+      seoVisibility: "Strong organic authority in M&A advisory",
+      icpFit: "HIGH",
+      abilityToPay: "HIGH",
+      urgency: "MEDIUM",
+      recurringPotential: "HIGH",
+      buyingSignals: "Expanding practice group into venture financing",
+      mainOpportunity: "B2B client acquisition engine for emerging tech founders",
+      dealValue: "35000.00",
+      stageKey: "discovery_scheduled",
+      assignedToId: adminId,
+      createdById: researcherId,
+      notes: "Managing partner agreed to a 20-minute Zoom briefing.",
+      researchNotes: "Site lacks case studies and clear venture practice page.",
+      contacts: [
+        {
+          id: "cnt_sterling_1",
+          firstName: "Arthur",
+          lastName: "Sterling",
+          fullName: "Arthur Sterling",
+          jobTitle: "Senior Managing Partner",
+          role: "Key Decision Maker",
+          email: "arthur@sterling-law-ny.com",
+          phone: "+1 (212) 555-0167",
+          preferredChannel: "EMAIL",
+          isDecisionMaker: true,
+        },
+      ],
+    },
+    {
+      id: "prospect_nexus_fintech",
+      name: "Nexus FinTech Cloud Solutions",
+      niche: "B2B SaaS & FinTech",
+      website: "https://nexus-fintech.io",
+      googleMapsUrl: "https://maps.google.com/?q=Nexus+Fintech+San+Francisco",
+      city: "San Francisco",
+      state: "CA",
+      country: "USA",
+      phone: "+1 (415) 555-0111",
+      email: "growth@nexus-fintech.io",
+      googleRating: "4.90",
+      reviewCount: 45,
+      websiteExists: true,
+      websiteQuality: "EXCELLENT",
+      mobileUx: "EXCELLENT",
+      ctaQuality: "EXCELLENT",
+      quoteBookingFlow: "Interactive API sandbox and enterprise demo flow",
+      trustSignals: "SOC 2 Type II Certified, ISO 27001",
+      seoVisibility: "Ranked for modern treasury automation",
+      icpFit: "HIGH",
+      abilityToPay: "HIGH",
+      urgency: "HIGH",
+      recurringPotential: "HIGH",
+      buyingSignals: "Closed Series A funding; scaling commercial outbound team",
+      mainOpportunity: "Custom enterprise lead enrichment and outbound orchestration",
+      dealValue: "50000.00",
+      stageKey: "contacted",
+      assignedToId: adminId,
+      createdById: adminId,
+      notes: "Met VP Growth on Twitter/X. Shared initial intelligence breakdown.",
+      researchNotes: "Rapidly expanding product line into European currencies.",
+      contacts: [
+        {
+          id: "cnt_nexus_1",
+          firstName: "Samantha",
+          lastName: "Wu",
+          fullName: "Samantha Wu",
+          jobTitle: "VP of Commercial Growth",
+          role: "Decision Maker",
+          email: "sam@nexus-fintech.io",
+          phone: "+1 (415) 555-0112",
+          linkedInUrl: "https://linkedin.com/in/demo-samantha-wu",
+          preferredChannel: "LINKEDIN",
+          isDecisionMaker: true,
+        },
+      ],
+    },
+    {
+      id: "prospect_bluepeak_plumbing",
+      name: "BluePeak Industrial Plumbing",
+      niche: "Commercial Plumbing",
+      website: "https://bluepeak-plumbing.com",
+      googleMapsUrl: "https://maps.google.com/?q=BluePeak+Plumbing+Dallas",
+      city: "Dallas",
+      state: "TX",
+      country: "USA",
+      phone: "+1 (214) 555-0182",
+      email: "dispatch@bluepeak-plumbing.com",
+      googleRating: "4.50",
+      reviewCount: 42,
+      websiteExists: true,
+      websiteQuality: "FAIR",
+      mobileUx: "FAIR",
+      ctaQuality: "POOR",
+      quoteBookingFlow: "Call-in only",
+      trustSignals: "Licensed Master Plumbers, 15+ years in DFW",
+      seoVisibility: "Moderate visibility on Google Maps",
+      icpFit: "MEDIUM",
+      abilityToPay: "MEDIUM",
+      urgency: "MEDIUM",
+      recurringPotential: "HIGH",
+      buyingSignals: "Targeting commercial multi-family property managers",
+      mainOpportunity: "Automated emergency dispatch lead capture and multi-unit retainer sales",
+      dealValue: "16000.00",
+      stageKey: "researching",
+      assignedToId: researcherId,
+      createdById: researcherId,
+      notes: "Researching owner contact information. Good potential for recurring service contracts.",
+      researchNotes: "Website was built in 2018 on Wix. Needs modern revamp.",
+      contacts: [
+        {
+          id: "cnt_bluepeak_1",
+          firstName: "Travis",
+          lastName: "Holloway",
+          fullName: "Travis Holloway",
+          jobTitle: "General Manager",
+          role: "Operations Lead",
+          email: "travis@bluepeak-plumbing.com",
+          phone: "+1 (214) 555-0183",
+          preferredChannel: "PHONE",
+          isDecisionMaker: true,
+        },
+      ],
+    },
+    {
+      id: "prospect_paramount_motors",
+      name: "Paramount Luxury Motors",
+      niche: "Automotive Dealership",
+      website: "https://paramount-motors-atl.com",
+      googleMapsUrl: "https://maps.google.com/?q=Paramount+Motors+Atlanta",
+      city: "Atlanta",
+      state: "GA",
+      country: "USA",
+      phone: "+1 (404) 555-0194",
+      email: "concierge@paramount-motors-atl.com",
+      googleRating: "4.65",
+      reviewCount: 128,
+      websiteExists: true,
+      websiteQuality: "GOOD",
+      mobileUx: "GOOD",
+      ctaQuality: "FAIR",
+      quoteBookingFlow: "Test drive booking widget",
+      trustSignals: "Verified Dealer, 5-Star DealerRater Award",
+      seoVisibility: "Top 5 for Atlanta luxury pre-owned cars",
+      icpFit: "HIGH",
+      abilityToPay: "HIGH",
+      urgency: "LOW",
+      recurringPotential: "MEDIUM",
+      buyingSignals: "Expanding consignment inventory for exotic sports cars",
+      mainOpportunity: "High-net-worth digital retargeting & VIP test-drive acquisition funnel",
+      dealValue: "20000.00",
+      stageKey: "qualified",
+      assignedToId: researcherId,
+      createdById: researcherId,
+      notes: "Sales Director is open to exploring dedicated VIP lead capture landing pages.",
+      researchNotes: "Current site inventory filters are clunky on smartphone screens.",
+      contacts: [
+        {
+          id: "cnt_paramount_1",
+          firstName: "Derrick",
+          lastName: "Boudreaux",
+          fullName: "Derrick Boudreaux",
+          jobTitle: "Director of Sales",
+          role: "Decision Maker",
+          email: "derrick@paramount-motors-atl.com",
+          phone: "+1 (404) 555-0195",
+          preferredChannel: "PHONE",
+          isDecisionMaker: true,
+        },
+      ],
+    },
+    {
+      id: "prospect_greenfield_landscaping",
+      name: "GreenField Landscaping & Hardscapes",
+      niche: "Landscape Architecture",
+      website: "https://greenfield-landscaping-clt.com",
+      googleMapsUrl: "https://maps.google.com/?q=GreenField+Landscaping+Charlotte",
+      city: "Charlotte",
+      state: "NC",
+      country: "USA",
+      phone: "+1 (704) 555-0139",
+      email: "quotes@greenfield-landscaping-clt.com",
+      googleRating: "4.55",
+      reviewCount: 31,
+      websiteExists: true,
+      websiteQuality: "FAIR",
+      mobileUx: "FAIR",
+      ctaQuality: "POOR",
+      quoteBookingFlow: "Request quote webform",
+      trustSignals: "NC Licensed Landscape Contractors",
+      seoVisibility: "Page 2 for Charlotte patio installation",
+      icpFit: "MEDIUM",
+      abilityToPay: "MEDIUM",
+      urgency: "LOW",
+      recurringPotential: "HIGH",
+      buyingSignals: "Shifting focus from residential mowing to $50k+ commercial outdoor living",
+      mainOpportunity: "Visual 3D design quote estimator + commercial portfolio gallery",
+      dealValue: "12500.00",
+      stageKey: "nurture",
+      assignedToId: researcherId,
+      createdById: researcherId,
+      notes: "Follow up in Q1 before spring construction season starts.",
+      researchNotes: "Great project photos on Facebook, but not uploaded to website.",
+      contacts: [
+        {
+          id: "cnt_greenfield_1",
+          firstName: "Luke",
+          lastName: "Harrison",
+          fullName: "Luke Harrison",
+          jobTitle: "Owner & Lead Designer",
+          role: "Sole Owner",
+          email: "luke@greenfield-landscaping-clt.com",
+          phone: "+1 (704) 555-0140",
+          preferredChannel: "PHONE",
+          isDecisionMaker: true,
+        },
+      ],
+    },
+    {
+      id: "prospect_omnicare_pt",
+      name: "OmniCare Physical Therapy Network",
+      niche: "Physical Therapy & Rehabilitation",
+      website: "https://omnicare-pt-boston.com",
+      googleMapsUrl: "https://maps.google.com/?q=OmniCare+PT+Boston",
+      city: "Boston",
+      state: "MA",
+      country: "USA",
+      phone: "+1 (617) 555-0185",
+      email: "appointments@omnicare-pt-boston.com",
+      googleRating: "4.30",
+      reviewCount: 22,
+      websiteExists: true,
+      websiteQuality: "POOR",
+      mobileUx: "POOR",
+      ctaQuality: "POOR",
+      quoteBookingFlow: "Download PDF registration form",
+      trustSignals: "APTA Member Clinics",
+      seoVisibility: "Low local search footprint",
+      icpFit: "MEDIUM",
+      abilityToPay: "MEDIUM",
+      urgency: "MEDIUM",
+      recurringPotential: "HIGH",
+      buyingSignals: "Acquired 2 new clinic locations in Cambridge and Brookline",
+      mainOpportunity: "Digital intake forms + patient acquisition Google Ads campaign",
+      dealValue: "14000.00",
+      stageKey: "researching",
+      assignedToId: researcherId,
+      createdById: researcherId,
+      notes: "Initial research completed. Need to verify direct email of Clinical Director.",
+      researchNotes: "Slow load times and PDF downloads hurting mobile conversions.",
+      contacts: [
+        {
+          id: "cnt_omnicare_1",
+          firstName: "Dr. Karen",
+          lastName: "O'Connor",
+          fullName: "Dr. Karen O'Connor",
+          jobTitle: "Clinical Director",
+          role: "Partner",
+          email: "karen@omnicare-pt-boston.com",
+          phone: "+1 (617) 555-0186",
+          preferredChannel: "EMAIL",
+          isDecisionMaker: true,
+        },
+      ],
+    },
+    {
+      id: "prospect_swiftclean_janitorial",
+      name: "SwiftClean Commercial Janitorial",
+      niche: "Facility Services",
+      website: "https://swiftclean-nashville.com",
+      googleMapsUrl: "https://maps.google.com/?q=SwiftClean+Nashville",
+      city: "Nashville",
+      state: "TN",
+      country: "USA",
+      phone: "+1 (615) 555-0129",
+      email: "service@swiftclean-nashville.com",
+      googleRating: "4.20",
+      reviewCount: 15,
+      websiteExists: true,
+      websiteQuality: "POOR",
+      mobileUx: "POOR",
+      ctaQuality: "FAIR",
+      quoteBookingFlow: "Basic email contact form",
+      trustSignals: "BSCAI Member, Insured & Bonded",
+      seoVisibility: "Low local search ranking",
+      icpFit: "LOW",
+      abilityToPay: "LOW",
+      urgency: "MEDIUM",
+      recurringPotential: "MEDIUM",
+      buyingSignals: "Trying to acquire medical office cleaning contracts",
+      mainOpportunity: "Medical facility compliance landing page + direct email sequence",
+      dealValue: "9500.00",
+      stageKey: "contacted",
+      assignedToId: researcherId,
+      createdById: researcherId,
+      notes: "Sent introductory cold email to general manager.",
+      researchNotes: "Small family business with 8 cleaners. Budget might be tight.",
+      contacts: [
+        {
+          id: "cnt_swiftclean_1",
+          firstName: "Brian",
+          lastName: "Miller",
+          fullName: "Brian Miller",
+          jobTitle: "Operations Manager",
+          role: "Co-Owner",
+          email: "brian@swiftclean-nashville.com",
+          phone: "+1 (615) 555-0130",
+          preferredChannel: "PHONE",
+          isDecisionMaker: true,
+        },
+      ],
+    },
+    {
+      id: "prospect_zenith_cyberdefense",
+      name: "Zenith Cloud CyberDefense",
+      niche: "CyberSecurity & Compliance",
+      website: "https://zenith-cyberdefense.com",
+      googleMapsUrl: "https://maps.google.com/?q=Zenith+CyberDefense+Reston",
+      city: "Reston",
+      state: "VA",
+      country: "USA",
+      phone: "+1 (703) 555-0171",
+      email: "security@zenith-cyberdefense.com",
+      googleRating: "4.95",
+      reviewCount: 68,
+      websiteExists: true,
+      websiteQuality: "EXCELLENT",
+      mobileUx: "EXCELLENT",
+      ctaQuality: "EXCELLENT",
+      quoteBookingFlow: "Free 24-hr vulnerability scan scheduler",
+      trustSignals: "CMMC Registered Practitioner Organization, CISSP Certified",
+      seoVisibility: "Dominates government contractor security keywords in NoVA",
+      icpFit: "HIGH",
+      abilityToPay: "HIGH",
+      urgency: "HIGH",
+      recurringPotential: "HIGH",
+      buyingSignals: "New federal defense mandate driving massive demand for CMMC Level 2 audits",
+      mainOpportunity: "High-ticket webinar funnel + account-based defense contractor outreach",
+      dealValue: "60000.00",
+      stageKey: "qualified",
+      assignedToId: adminId,
+      createdById: adminId,
+      notes: "High value deal. CEO agreed to review full strategic growth roadmap.",
+      researchNotes: "Very strong technical expertise. Needs help scaling enterprise sales team.",
+      contacts: [
+        {
+          id: "cnt_zenith_1",
+          firstName: "Gregory",
+          lastName: "Holt",
+          fullName: "Gregory Holt",
+          jobTitle: "Chief Executive Officer & Founder",
+          role: "Executive Decision Maker",
+          email: "greg@zenith-cyberdefense.com",
+          phone: "+1 (703) 555-0172",
+          linkedInUrl: "https://linkedin.com/in/demo-greg-holt",
+          preferredChannel: "EMAIL",
+          isDecisionMaker: true,
+        },
+      ],
+    },
+    {
+      id: "prospect_redline_detailing",
+      name: "Redline Auto Detailing Hub",
+      niche: "Auto Detailing & Ceramic Coating",
+      website: "https://redline-detailing-vegas.com",
+      googleMapsUrl: "https://maps.google.com/?q=Redline+Detailing+Las+Vegas",
+      city: "Las Vegas",
+      state: "NV",
+      country: "USA",
+      phone: "+1 (702) 555-0147",
+      email: "info@redline-detailing-vegas.com",
+      googleRating: "3.80",
+      reviewCount: 8,
+      websiteExists: false,
+      websiteQuality: "POOR",
+      mobileUx: "POOR",
+      ctaQuality: "POOR",
+      quoteBookingFlow: "None",
+      trustSignals: "None listed",
+      seoVisibility: "Not ranked",
+      icpFit: "LOW",
+      abilityToPay: "LOW",
+      urgency: "LOW",
+      recurringPotential: "LOW",
+      buyingSignals: "None",
+      mainOpportunity: "Basic digital setup and Google Business Profile optimization",
+      dealValue: "4500.00",
+      stageKey: "disqualified",
+      assignedToId: researcherId,
+      createdById: researcherId,
+      notes: "Lead does not meet minimum revenue threshold. Disqualified for current quarter.",
+      researchNotes: "One-man mobile operation with no physical shop.",
+      contacts: [
+        {
+          id: "cnt_redline_1",
+          firstName: "Tony",
+          lastName: "Garza",
+          fullName: "Tony Garza",
+          jobTitle: "Operator",
+          role: "Owner",
+          email: "tony@redline-detailing-vegas.com",
+          phone: "+1 (702) 555-0148",
+          preferredChannel: "PHONE",
           isDecisionMaker: true,
         },
       ],
@@ -623,40 +1167,69 @@ export async function seedDatabase() {
         .onConflictDoNothing();
     }
 
-    // Insert sample activity
+    // Insert sample activities
     await db
       .insert(activities)
-      .values({
-        id: `act_${p.id}_1`,
-        workspaceId,
-        prospectId: p.id,
-        userId: p.assignedToId || adminId,
-        type: "RESEARCH",
-        title: "Initial Digital Presence & Competitor Audit",
-        description: `Conducted in-depth website speed, local SEO audit and verified Google reviews. Identified opportunity: ${p.mainOpportunity}`,
-        outcome: `Calculated Lead Score: ${scoreResult.score} (${scoreResult.grade})`,
-        nextAction: "Conduct initial decision-maker outreach via preferred channel.",
-      })
+      .values([
+        {
+          id: `act_${p.id}_1`,
+          workspaceId,
+          prospectId: p.id,
+          userId: p.assignedToId || adminId,
+          type: "RESEARCH",
+          title: "Initial Digital Footprint & Competitor Audit",
+          description: `Conducted in-depth website speed audit, local SEO analysis, and verified Google reviews. Identified key opportunity: ${p.mainOpportunity}`,
+          outcome: `Calculated Lead Score: ${scoreResult.score} (Grade ${scoreResult.grade})`,
+          nextAction: "Execute initial decision-maker outreach via preferred communication channel.",
+          performedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3), // 3 days ago
+        },
+        {
+          id: `act_${p.id}_2`,
+          workspaceId,
+          prospectId: p.id,
+          userId: p.assignedToId || adminId,
+          type: "PHONE",
+          title: "Discovery & Qualification Touchpoint",
+          description: `Connected with key stakeholder regarding current lead acquisition challenges and growth goals for upcoming quarter.`,
+          outcome: `Confirmed budget authority and active interest in proposal presentation.`,
+          nextAction: "Deliver customized strategic proposal.",
+          performedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1), // 1 day ago
+        },
+      ])
       .onConflictDoNothing();
 
-    // Insert sample task
+    // Insert sample tasks
     await db
       .insert(tasks)
-      .values({
-        id: `task_${p.id}_1`,
-        workspaceId,
-        prospectId: p.id,
-        assignedToId: p.assignedToId || researcherId,
-        createdById: adminId,
-        title: `Follow up with ${p.contacts[0]?.fullName || "decision maker"} on proposal`,
-        description: `Review customized quote breakdown and schedule 15-minute alignment call.`,
-        priority: p.urgency === "HIGH" ? "HIGH" : "MEDIUM",
-        status: "TODO",
-        dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2), // in 2 days
-      })
+      .values([
+        {
+          id: `task_${p.id}_1`,
+          workspaceId,
+          prospectId: p.id,
+          assignedToId: p.assignedToId || researcherId,
+          createdById: adminId,
+          title: `Follow up with ${p.contacts[0]?.fullName || "decision maker"} on commercial proposal`,
+          description: `Review customized quote breakdown and schedule 15-minute alignment call.`,
+          priority: p.urgency === "HIGH" ? "HIGH" : "MEDIUM",
+          status: p.stageKey === "closed_won" ? "COMPLETED" : "TODO",
+          dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2), // in 2 days
+        },
+        {
+          id: `task_${p.id}_2`,
+          workspaceId,
+          prospectId: p.id,
+          assignedToId: p.assignedToId || researcherId,
+          createdById: adminId,
+          title: `Enrich secondary operational contacts for ${p.name}`,
+          description: `Identify VP of Marketing or Operations Director on LinkedIn Sales Navigator.`,
+          priority: "NORMAL",
+          status: "TODO",
+          dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 5), // in 5 days
+        },
+      ])
       .onConflictDoNothing();
 
-    // Insert custom field value
+    // Insert custom field values
     await db
       .insert(customFieldValues)
       .values({
@@ -670,5 +1243,79 @@ export async function seedDatabase() {
       .onConflictDoNothing();
   }
 
-  console.log("✅ Revlo CRM database seeded successfully!");
+  // 9. Seed Market Research Keywords
+  console.log("9️⃣ Inserting Market Research Keywords...");
+  const sampleKeywords = [
+    {
+      keyword: "commercial roofing austin",
+      location: "Austin, TX",
+      city: "Austin",
+      state: "TX",
+      niche: "Roofing & Construction",
+      status: "COMPLETED",
+      companyCount: 12,
+    },
+    {
+      keyword: "commercial hvac denver",
+      location: "Denver, CO",
+      city: "Denver",
+      state: "CO",
+      niche: "HVAC & Mechanical",
+      status: "COMPLETED",
+      companyCount: 9,
+    },
+    {
+      keyword: "cosmetic dentistry seattle",
+      location: "Seattle, WA",
+      city: "Seattle",
+      state: "WA",
+      niche: "Healthcare & Dental",
+      status: "IN_PROGRESS",
+      companyCount: 15,
+    },
+    {
+      keyword: "solar installation phoenix",
+      location: "Phoenix, AZ",
+      city: "Phoenix",
+      state: "AZ",
+      niche: "Clean Energy & Solar",
+      status: "COMPLETED",
+      companyCount: 18,
+    },
+    {
+      keyword: "medspa miami",
+      location: "Miami, FL",
+      city: "Miami",
+      state: "FL",
+      niche: "Aesthetics & MedSpa",
+      status: "COMPLETED",
+      companyCount: 14,
+    },
+  ];
+
+  for (const kw of sampleKeywords) {
+    await db
+      .insert(researchKeywords)
+      .values({
+        id: `rk_${kw.keyword.replace(/[^a-z0-9]/g, "_")}`,
+        workspaceId,
+        keyword: kw.keyword,
+        normalizedKeyword: kw.keyword.trim().toLowerCase(),
+        niche: kw.niche,
+        city: kw.city,
+        state: kw.state,
+        status: kw.status,
+        prospectsFoundCount: kw.companyCount,
+        userId: researcherId,
+      })
+      .onConflictDoNothing();
+  }
+
+  console.log("===============================================================");
+  console.log("🎉 REVLO CRM DATABASE RESET & SEEDED WITH PRISTINE DATA (100%)");
+  console.log("===============================================================");
+  console.log(`👤 Admin Account:      admin@revlo.demo (Password: admin123)`);
+  console.log(`👤 Researcher Account: researcher@revlo.demo (Password: researcher123)`);
+  console.log(`🏢 Workspace:          Revlo Growth Lab (16 Prospects, 13 Stages, Tasks & Activities)`);
+  console.log("===============================================================");
 }
