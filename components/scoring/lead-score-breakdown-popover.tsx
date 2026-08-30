@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Sparkles, Flame, Star, Globe, Target, BarChart2, Info, ChevronRight, CheckCircle2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,23 +33,90 @@ export function LeadScoreBreakdownPopover({
 }: LeadScoreBreakdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMethodologyOpen, setIsMethodologyOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
-  // Close on outside click
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
-    if (!isOpen) return;
-    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleOutsideClick);
-    document.addEventListener("touchstart", handleOutsideClick);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-      document.removeEventListener("touchstart", handleOutsideClick);
-    };
-  }, [isOpen]);
+    setMounted(true);
+  }, []);
+
+  // Compute position relative to viewport using bounding rect
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current || typeof window === "undefined") return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const popoverWidth = Math.min(350, window.innerWidth - 24);
+    const estimatedHeight = 390;
+
+    // Horizontal positioning
+    let left: number;
+    if (align === "start") {
+      left = rect.left;
+    } else if (align === "end") {
+      left = rect.right - popoverWidth;
+    } else {
+      left = rect.left + rect.width / 2 - popoverWidth / 2;
+    }
+
+    // Viewport horizontal safety clamp
+    if (left < 12) left = 12;
+    if (left + popoverWidth > window.innerWidth - 12) {
+      left = window.innerWidth - popoverWidth - 12;
+    }
+
+    // Vertical positioning
+    let top = rect.bottom + 8;
+    if (side === "top" || (top + estimatedHeight > window.innerHeight && rect.top > estimatedHeight)) {
+      top = rect.top - estimatedHeight - 8;
+    }
+
+    // Viewport vertical safety clamp
+    if (top < 12) top = 12;
+    if (top + estimatedHeight > window.innerHeight) {
+      top = Math.max(12, window.innerHeight - estimatedHeight - 12);
+    }
+
+    setCoords({ top, left });
+  }, [align, side]);
+
+  const handleMouseEnter = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    updatePosition();
+    setIsOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsOpen(false);
+    }, 150);
+  };
+
+  const handleTriggerClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isOpen) {
+      updatePosition();
+    }
+    setIsOpen((prev) => !prev);
+  };
+
+  // Keep position accurate during scroll or resize
+  useEffect(() => {
+    if (isOpen) {
+      updatePosition();
+      const handleScroll = () => updatePosition();
+      window.addEventListener("scroll", handleScroll, true);
+      window.addEventListener("resize", handleScroll);
+      return () => {
+        window.removeEventListener("scroll", handleScroll, true);
+        window.removeEventListener("resize", handleScroll);
+      };
+    }
+  }, [isOpen, updatePosition]);
 
   // Compute or extrapolate score & breakdown
   const computedResult: ScoreResult = useMemo(() => {
@@ -132,33 +200,18 @@ export function LeadScoreBreakdownPopover({
     }
   }, [grade]);
 
-  const alignClass = useMemo(() => {
-    switch (align) {
-      case "start":
-        return "sm:left-0 sm:translate-x-0";
-      case "end":
-        return "sm:right-0 sm:left-auto sm:translate-x-0";
-      default:
-        return "sm:left-1/2 sm:-translate-x-1/2";
-    }
-  }, [align]);
-
-  const sideClass = useMemo(() => {
-    return side === "top" ? "sm:bottom-full sm:mb-2" : "sm:top-full sm:mt-2";
-  }, [side]);
-
   return (
     <>
       <div
-        ref={containerRef}
         className={`relative inline-block ${className}`}
-        onMouseEnter={() => setIsOpen(true)}
-        onMouseLeave={() => setIsOpen(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
-        {/* Trigger Badge */}
+        {/* Trigger Badge Button */}
         <button
+          ref={triggerRef}
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={handleTriggerClick}
           className="inline-flex items-center gap-1.5 focus:outline-none cursor-pointer group"
           aria-label="View Lead Score Breakdown"
         >
@@ -178,23 +231,32 @@ export function LeadScoreBreakdownPopover({
             <Info className="h-3 w-3 ml-0.5 opacity-70 group-hover:opacity-100 transition-opacity" />
           </Badge>
         </button>
+      </div>
 
-        {/* Mobile Backdrop to catch outside taps */}
-        {isOpen && (
+      {/* Portal Container mounted in document.body with Topmost z-index */}
+      {isOpen && mounted && typeof document !== "undefined" && createPortal(
+        <>
+          {/* Backdrop for easy outside-tap dismissal on mobile/desktop */}
           <div
-            className="fixed inset-0 z-[68] sm:hidden bg-black/40 backdrop-blur-xs"
+            className="fixed inset-0 z-[99998] bg-black/20 sm:bg-transparent"
             onClick={(e) => {
               e.stopPropagation();
               setIsOpen(false);
             }}
           />
-        )}
 
-        {/* Floating Glassmorphic Breakdown Card Popover */}
-        {isOpen && (
+          {/* Floating Glassmorphic Breakdown Card Popover */}
           <div
-            className={`fixed sm:absolute z-[70] inset-x-3 top-20 sm:inset-x-auto sm:top-auto ${sideClass} ${alignClass} w-auto sm:w-88 max-w-sm sm:max-w-none mx-auto sm:mx-0 p-4 rounded-3xl bg-white/98 dark:bg-[#121218]/98 backdrop-blur-2xl border border-slate-200/90 dark:border-zinc-800 shadow-2xl text-foreground dark:text-zinc-100 animate-in fade-in zoom-in-95 duration-150 text-xs space-y-3.5`}
+            style={{
+              position: "fixed",
+              top: `${coords.top}px`,
+              left: `${coords.left}px`,
+              width: "min(350px, calc(100vw - 24px))",
+            }}
+            className="z-[99999] p-4 rounded-3xl bg-white/98 dark:bg-[#121218]/98 backdrop-blur-2xl border border-slate-200/90 dark:border-zinc-800 shadow-2xl text-foreground dark:text-zinc-100 animate-in fade-in zoom-in-95 duration-150 text-xs space-y-3.5 pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
           >
             {/* Header: Score Banner */}
             <div className={`p-3 rounded-2xl bg-gradient-to-tr ${gradeConfig.bgGlow} border ${gradeConfig.border} flex items-center justify-between relative`}>
@@ -330,8 +392,9 @@ export function LeadScoreBreakdownPopover({
               </button>
             </div>
           </div>
-        )}
-      </div>
+        </>,
+        document.body
+      )}
 
       {/* Full Methodology Modal */}
       <ScoringMethodologyModal
