@@ -120,30 +120,55 @@ export function LeadScoreBreakdownPopover({
 
   // Compute or extrapolate score & breakdown
   const computedResult: ScoreResult = useMemo(() => {
+    // 1. If an explicit stored score is provided (from database entity), respect it as authoritative ground truth
+    if (rawScore !== undefined && rawScore !== null) {
+      const sc = Number(rawScore) || 0;
+      let gr: "A+" | "A" | "B" | "C" | "D" = (rawGrade as any) || "C";
+      if (!rawGrade) {
+        if (sc >= 85) gr = "A+";
+        else if (sc >= 70) gr = "A";
+        else if (sc >= 50) gr = "B";
+        else if (sc >= 30) gr = "C";
+        else gr = "D";
+      }
+
+      // If full scoring input is available, extract real breakdown pillars
+      if (scoringInput && (scoringInput.websiteQuality || scoringInput.abilityToPay || scoringInput.googleRating)) {
+        const fullCalc = calculateLeadScore(scoringInput);
+        return {
+          score: sc,
+          grade: gr,
+          breakdown: fullCalc.breakdown,
+        };
+      }
+
+      // Proportionally distribute breakdown for accurate visualization
+      const ratio = sc / 100;
+      return {
+        score: sc,
+        grade: gr,
+        breakdown: {
+          commercialScore: Math.round(35 * ratio),
+          digitalScore: Math.round(30 * ratio),
+          localReputationScore: Math.round(20 * ratio),
+          readinessScore: Math.round(15 * ratio),
+        },
+      };
+    }
+
+    // 2. If no rawScore passed, dynamically calculate from input (e.g. create/edit form live preview)
     if (scoringInput) {
       return calculateLeadScore(scoringInput);
     }
 
-    const sc = Number(rawScore) || 0;
-    let gr: "A+" | "A" | "B" | "C" | "D" = (rawGrade as any) || "C";
-    if (!rawGrade) {
-      if (sc >= 85) gr = "A+";
-      else if (sc >= 70) gr = "A";
-      else if (sc >= 50) gr = "B";
-      else if (sc >= 30) gr = "C";
-      else gr = "D";
-    }
-
-    // Proportionally distribute breakdown for accurate visualization
-    const ratio = sc / 100;
     return {
-      score: sc,
-      grade: gr,
+      score: 0,
+      grade: "D",
       breakdown: {
-        commercialScore: Math.round(35 * ratio),
-        digitalScore: Math.round(30 * ratio),
-        localReputationScore: Math.round(20 * ratio),
-        readinessScore: Math.round(15 * ratio),
+        commercialScore: 0,
+        digitalScore: 0,
+        localReputationScore: 0,
+        readinessScore: 0,
       },
     };
   }, [scoringInput, rawScore, rawGrade]);
