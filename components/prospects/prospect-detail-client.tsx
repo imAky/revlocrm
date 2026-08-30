@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -32,6 +32,12 @@ import {
   Send,
   Zap,
   CheckSquare,
+  ChevronDown,
+  Copy,
+  Download,
+  Loader2,
+  PhoneCall,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +52,7 @@ import { createTaskAction, updateTaskStatusAction, TaskLogItem } from "@/lib/act
 import { saveCustomFieldValueAction } from "@/lib/actions/custom-fields";
 import { ProspectTasksTab } from "./prospect-tasks-tab";
 import { ProspectActivitiesTab } from "./prospect-activities-tab";
-import { ProspectAiDossierModal } from "./prospect-ai-dossier-modal";
+import { ProspectAiDossierModal, generateBaseDossierMarkdown } from "./prospect-ai-dossier-modal";
 import { ProspectMediaTab } from "./prospect-media-tab";
 import { LeadScoreBreakdownPopover } from "@/components/scoring/lead-score-breakdown-popover";
 import { ProspectMediaItem } from "@/lib/actions/media";
@@ -88,6 +94,83 @@ export function ProspectDetailClient({
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [isDossierModalOpen, setIsDossierModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Stage & AI Quick Dropdowns state
+  const [currentStageId, setCurrentStageId] = useState(prospect.stageId || stages[0]?.id || "");
+  const [isUpdatingStage, setIsUpdatingStage] = useState(false);
+  const [isStageDropdownOpen, setIsStageDropdownOpen] = useState(false);
+  const [isAiDropdownOpen, setIsAiDropdownOpen] = useState(false);
+  const [quickCopied, setQuickCopied] = useState<string | null>(null);
+
+  const stageDropdownRef = useRef<HTMLDivElement>(null);
+  const aiDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns on click outside
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (stageDropdownRef.current && !stageDropdownRef.current.contains(e.target as Node)) {
+        setIsStageDropdownOpen(false);
+      }
+      if (aiDropdownRef.current && !aiDropdownRef.current.contains(e.target as Node)) {
+        setIsAiDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
+  const currentStage = useMemo(() => {
+    return stages.find((s) => s.id === currentStageId) || stages[0];
+  }, [stages, currentStageId]);
+
+  // Quick Stage Change Handler
+  const handleQuickStageChange = async (newStageId: string) => {
+    if (!newStageId || newStageId === currentStageId) {
+      setIsStageDropdownOpen(false);
+      return;
+    }
+    setIsUpdatingStage(true);
+    setCurrentStageId(newStageId);
+    setIsStageDropdownOpen(false);
+    try {
+      await updateProspectAction(prospect.id, { stageId: newStageId });
+      router.refresh();
+    } catch (err: unknown) {
+      alert((err as Error).message || "Failed to update stage");
+      setCurrentStageId(prospect.stageId);
+    } finally {
+      setIsUpdatingStage(false);
+    }
+  };
+
+  // Quick AI Prompt Copy Handler
+  const handleQuickCopyDossier = async (type: "DOSSIER" | "COLD_EMAIL" | "COLD_CALL") => {
+    try {
+      const baseMd = generateBaseDossierMarkdown({
+        prospect: { ...prospect, stageId: currentStageId },
+        contactsList,
+        activitiesList,
+        tasksList,
+        customFieldsList,
+        customFieldValuesMap: customValues,
+        stageName: currentStage?.name,
+      });
+      let textToCopy = baseMd;
+      if (type === "COLD_EMAIL") {
+        textToCopy = `You are an elite B2B sales copywriter. Craft a 3-paragraph personalized cold outreach email for ${prospect.name}.\n\n### PROSPECT CONTEXT:\n${baseMd}`;
+      } else if (type === "COLD_CALL") {
+        textToCopy = `You are an elite SDR coach. Generate an actionable 60-second cold call script for ${prospect.name}.\n\n### PROSPECT CONTEXT:\n${baseMd}`;
+      }
+      await navigator.clipboard.writeText(textToCopy);
+      setQuickCopied(type);
+      setTimeout(() => setQuickCopied(null), 2000);
+      setIsAiDropdownOpen(false);
+    } catch {
+      alert("Failed to copy prompt to clipboard");
+    }
+  };
 
   // Custom field local values state
   const [customValues, setCustomValues] = useState<Record<string, string>>(customFieldValuesMap);
@@ -165,11 +248,6 @@ export function ProspectDetailClient({
     priority: "MEDIUM",
     dueDate: "",
   });
-
-  // Stage change quick handler
-  const handleQuickStageChange = async (newStageId: string) => {
-    await updateProspectAction(prospect.id, { stageId: newStageId });
-  };
 
   // Edit Prospect Submit
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -374,27 +452,145 @@ export function ProspectDetailClient({
 
           {/* Header Quick Actions */}
           <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={prospect.stageId || ""}
-              onChange={(e) => handleQuickStageChange(e.target.value)}
-              className="h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 font-medium focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
-            >
-              {stages.map((s) => (
-                <option key={s.id} value={s.id} className="bg-card dark:bg-zinc-900 text-foreground dark:text-zinc-100">
-                  Stage: {s.name}
-                </option>
-              ))}
-            </select>
+            {/* 1. Interactive Pipeline Stage Selector Dropdown */}
+            <div ref={stageDropdownRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setIsStageDropdownOpen((prev) => !prev)}
+                disabled={isUpdatingStage}
+                className="h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 font-medium flex items-center gap-2 shadow-2xs hover:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary transition-all cursor-pointer"
+                title="Change Pipeline Stage"
+              >
+                {isUpdatingStage ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                ) : (
+                  <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                )}
+                <span>Stage: {currentStage?.name || "Unassigned"}</span>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${
+                    isStageDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
 
-            <Button
-              size="sm"
-              variant="gradient"
-              onClick={() => setIsDossierModalOpen(true)}
-              className="gap-1.5 text-xs font-semibold rounded-xl shadow-xs"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>AI Prompt Summary (.MD)</span>
-            </Button>
+              {isStageDropdownOpen && (
+                <div className="absolute left-0 top-full mt-1.5 w-60 p-1.5 rounded-2xl bg-white dark:bg-[#121218] border border-slate-200/90 dark:border-zinc-800 shadow-2xl z-50 text-xs space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/40 mb-1">
+                    Move Pipeline Stage
+                  </div>
+                  <div className="max-h-60 overflow-y-auto space-y-0.5 scrollbar-none">
+                    {stages.map((s) => {
+                      const isSelected = s.id === currentStageId;
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => handleQuickStageChange(s.id)}
+                          className={`w-full px-2.5 py-1.5 rounded-xl text-left flex items-center justify-between transition-colors cursor-pointer ${
+                            isSelected
+                              ? "bg-primary/10 text-primary font-semibold"
+                              : "text-foreground hover:bg-muted/70 dark:hover:bg-zinc-800/80"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <span
+                              className={`h-2 w-2 rounded-full shrink-0 ${
+                                isSelected ? "bg-primary" : "bg-muted-foreground/50"
+                              }`}
+                            />
+                            <span className="truncate">{s.name}</span>
+                          </div>
+                          {isSelected && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 2. AI Prompt Summary Split / Actions Dropdown */}
+            <div ref={aiDropdownRef} className="relative inline-flex items-center rounded-xl shadow-xs">
+              <Button
+                size="sm"
+                variant="gradient"
+                onClick={() => setIsDossierModalOpen(true)}
+                className="gap-1.5 text-xs font-semibold rounded-l-xl rounded-r-none border-r border-white/20"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>AI Prompt Summary (.MD)</span>
+              </Button>
+
+              <button
+                type="button"
+                onClick={() => setIsAiDropdownOpen((prev) => !prev)}
+                className="h-8 px-2 bg-gradient-to-tr from-violet-600 to-indigo-500 text-white rounded-r-xl hover:brightness-110 focus:outline-none transition-all flex items-center justify-center cursor-pointer"
+                title="Quick AI Prompt Actions & Templates"
+              >
+                <ChevronDown
+                  className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                    isAiDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {isAiDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-64 p-1.5 rounded-2xl bg-white dark:bg-[#121218] border border-slate-200/90 dark:border-zinc-800 shadow-2xl z-50 text-xs space-y-1 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/40">
+                    AI Actions & Prompt Templates
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAiDropdownOpen(false);
+                      setIsDossierModalOpen(true);
+                    }}
+                    className="w-full px-2.5 py-1.5 rounded-xl text-left flex items-center gap-2 hover:bg-muted/70 dark:hover:bg-zinc-800/80 transition-colors cursor-pointer text-foreground"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    <span>Open Full Prompt Modal (.MD)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickCopyDossier("DOSSIER")}
+                    className="w-full px-2.5 py-1.5 rounded-xl text-left flex items-center justify-between hover:bg-muted/70 dark:hover:bg-zinc-800/80 transition-colors cursor-pointer text-foreground"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Copy className="h-3.5 w-3.5 text-indigo-400" />
+                      <span>1-Click Copy Full Dossier</span>
+                    </div>
+                    {quickCopied === "DOSSIER" && <Check className="h-3.5 w-3.5 text-emerald-500" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickCopyDossier("COLD_EMAIL")}
+                    className="w-full px-2.5 py-1.5 rounded-xl text-left flex items-center justify-between hover:bg-muted/70 dark:hover:bg-zinc-800/80 transition-colors cursor-pointer text-foreground"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-3.5 w-3.5 text-sky-400" />
+                      <span>Copy Cold Email Prompt</span>
+                    </div>
+                    {quickCopied === "COLD_EMAIL" && <Check className="h-3.5 w-3.5 text-emerald-500" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickCopyDossier("COLD_CALL")}
+                    className="w-full px-2.5 py-1.5 rounded-xl text-left flex items-center justify-between hover:bg-muted/70 dark:hover:bg-zinc-800/80 transition-colors cursor-pointer text-foreground"
+                  >
+                    <div className="flex items-center gap-2">
+                      <PhoneCall className="h-3.5 w-3.5 text-emerald-400" />
+                      <span>Copy Cold Call Script</span>
+                    </div>
+                    {quickCopied === "COLD_CALL" && <Check className="h-3.5 w-3.5 text-emerald-500" />}
+                  </button>
+                </div>
+              )}
+            </div>
 
             <Button
               size="sm"
