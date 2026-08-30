@@ -8,6 +8,7 @@ import {
   users,
 } from "@/lib/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
+import { getOrSeedWorkspaceStages } from "@/lib/db/stages";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 
 export default async function DashboardPage() {
@@ -22,23 +23,20 @@ export default async function DashboardPage() {
         niche: prospects.niche,
         city: prospects.city,
         state: prospects.state,
-        phone: prospects.phone,
-        email: prospects.email,
-        website: prospects.website,
+        country: prospects.country,
         leadScore: prospects.leadScore,
         leadGrade: prospects.leadGrade,
         dealValue: prospects.dealValue,
         stageId: prospects.stageId,
         assignedToId: prospects.assignedToId,
-        assignedToName: users.name,
-        createdAt: prospects.createdAt,
-        nextFollowUpDate: prospects.nextFollowUpDate,
+        website: prospects.website,
+        phone: prospects.phone,
         googleRating: prospects.googleRating,
         reviewCount: prospects.reviewCount,
-        outreachStatus: prospects.outreachStatus,
+        businessStatus: prospects.businessStatus,
+        createdAt: prospects.createdAt,
       })
       .from(prospects)
-      .leftJoin(users, eq(prospects.assignedToId, users.id))
       .where(
         and(
           eq(prospects.workspaceId, ctx.workspaceId),
@@ -47,12 +45,8 @@ export default async function DashboardPage() {
       )
       .orderBy(desc(prospects.leadScore)),
 
-    // 2. Fetch pipeline stages
-    db
-      .select()
-      .from(pipelineStages)
-      .where(eq(pipelineStages.workspaceId, ctx.workspaceId))
-      .orderBy(pipelineStages.orderIndex),
+    // 2. Fetch pipeline stages (Guaranteed 13 stages)
+    getOrSeedWorkspaceStages(ctx.workspaceId),
 
     // 3. Fetch user tasks
     db

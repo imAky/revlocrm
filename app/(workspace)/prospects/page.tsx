@@ -2,12 +2,13 @@ import { requireAuth } from "@/lib/permissions/server-guards";
 import { db } from "@/lib/db";
 import { prospects, pipelineStages, users } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { getOrSeedWorkspaceStages } from "@/lib/db/stages";
 import { ProspectsTableClient, ProspectItem } from "@/components/prospects/prospects-table-client";
 
 export default async function ProspectsPage() {
   const ctx = await requireAuth();
 
-  // 1. Fetch prospects with joins for stage & assigned user
+  // 1. Fetch prospects with linked stage and assignee
   const rawProspects = await db
     .select({
       id: prospects.id,
@@ -16,26 +17,28 @@ export default async function ProspectsPage() {
       category: prospects.category,
       niche: prospects.niche,
       website: prospects.website,
+      phone: prospects.phone,
+      email: prospects.email,
+      address: prospects.address,
       city: prospects.city,
       state: prospects.state,
       country: prospects.country,
-      phone: prospects.phone,
-      email: prospects.email,
-      businessStatus: prospects.businessStatus,
       googleRating: prospects.googleRating,
       reviewCount: prospects.reviewCount,
       leadScore: prospects.leadScore,
       leadGrade: prospects.leadGrade,
       icpFit: prospects.icpFit,
-      urgency: prospects.urgency,
       dealValue: prospects.dealValue,
+      urgency: prospects.urgency,
       stageId: prospects.stageId,
       stageName: pipelineStages.name,
       stageColor: pipelineStages.color,
       assignedToId: prospects.assignedToId,
       assignedToName: users.name,
+      businessStatus: prospects.businessStatus,
       mainOpportunity: prospects.mainOpportunity,
       buyingSignals: prospects.buyingSignals,
+      outreachStatus: prospects.outreachStatus,
       createdAt: prospects.createdAt,
       updatedAt: prospects.updatedAt,
     })
@@ -50,12 +53,8 @@ export default async function ProspectsPage() {
     )
     .orderBy(desc(prospects.leadScore));
 
-  // 2. Fetch stages
-  const stages = await db
-    .select({ id: pipelineStages.id, name: pipelineStages.name, color: pipelineStages.color })
-    .from(pipelineStages)
-    .where(eq(pipelineStages.workspaceId, ctx.workspaceId))
-    .orderBy(pipelineStages.orderIndex);
+  // 2. Fetch stages (Guaranteed 13 stages)
+  const stages = await getOrSeedWorkspaceStages(ctx.workspaceId);
 
   // 3. Fetch workspace users
   const workspaceUsers = await db

@@ -2,17 +2,14 @@ import { requireAuth } from "@/lib/permissions/server-guards";
 import { db } from "@/lib/db";
 import { prospects, pipelineStages, users } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { getOrSeedWorkspaceStages } from "@/lib/db/stages";
 import { PipelineKanbanClient, KanbanStage, KanbanProspect } from "@/components/pipeline/pipeline-kanban-client";
 
 export default async function PipelinePage() {
   const ctx = await requireAuth();
 
-  // 1. Fetch stages
-  const stages = await db
-    .select()
-    .from(pipelineStages)
-    .where(eq(pipelineStages.workspaceId, ctx.workspaceId))
-    .orderBy(pipelineStages.orderIndex);
+  // 1. Fetch stages (Guaranteed 13 stages)
+  const stages = await getOrSeedWorkspaceStages(ctx.workspaceId);
 
   // 2. Fetch active prospects
   const activeProspects = await db
