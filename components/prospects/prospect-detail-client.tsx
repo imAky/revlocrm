@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -38,6 +39,7 @@ import {
   Loader2,
   PhoneCall,
   Search,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -101,25 +103,75 @@ export function ProspectDetailClient({
   const [isStageDropdownOpen, setIsStageDropdownOpen] = useState(false);
   const [isAiDropdownOpen, setIsAiDropdownOpen] = useState(false);
   const [quickCopied, setQuickCopied] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [stageDropdownPos, setStageDropdownPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [aiDropdownPos, setAiDropdownPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
-  const stageDropdownRef = useRef<HTMLDivElement>(null);
-  const aiDropdownRef = useRef<HTMLDivElement>(null);
+  const stageBtnRef = useRef<HTMLButtonElement>(null);
+  const aiBtnRef = useRef<HTMLButtonElement>(null);
 
-  // Close dropdowns on click outside
   useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (stageDropdownRef.current && !stageDropdownRef.current.contains(e.target as Node)) {
-        setIsStageDropdownOpen(false);
-      }
-      if (aiDropdownRef.current && !aiDropdownRef.current.contains(e.target as Node)) {
-        setIsAiDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
+    setMounted(true);
   }, []);
+
+  const updateStageDropdownPos = useCallback(() => {
+    if (!stageBtnRef.current || typeof window === "undefined") return;
+    const rect = stageBtnRef.current.getBoundingClientRect();
+    const width = Math.min(480, window.innerWidth - 24);
+    let left = rect.left;
+    if (left + width > window.innerWidth - 12) {
+      left = window.innerWidth - width - 12;
+    }
+    if (left < 12) left = 12;
+    let top = rect.bottom + 8;
+    if (top + 400 > window.innerHeight && rect.top > 400) {
+      top = Math.max(12, rect.top - 400 - 8);
+    }
+    setStageDropdownPos({ top, left });
+  }, []);
+
+  const updateAiDropdownPos = useCallback(() => {
+    if (!aiBtnRef.current || typeof window === "undefined") return;
+    const rect = aiBtnRef.current.getBoundingClientRect();
+    const width = Math.min(280, window.innerWidth - 24);
+    let left = rect.right - width;
+    if (left < 12) left = 12;
+    if (left + width > window.innerWidth - 12) {
+      left = window.innerWidth - width - 12;
+    }
+    let top = rect.bottom + 8;
+    if (top + 280 > window.innerHeight && rect.top > 280) {
+      top = Math.max(12, rect.top - 280 - 8);
+    }
+    setAiDropdownPos({ top, left });
+  }, []);
+
+  // Update positions on open, scroll, or resize
+  useEffect(() => {
+    if (isStageDropdownOpen) {
+      updateStageDropdownPos();
+      const handleScroll = () => updateStageDropdownPos();
+      window.addEventListener("scroll", handleScroll, true);
+      window.addEventListener("resize", handleScroll);
+      return () => {
+        window.removeEventListener("scroll", handleScroll, true);
+        window.removeEventListener("resize", handleScroll);
+      };
+    }
+  }, [isStageDropdownOpen, updateStageDropdownPos]);
+
+  useEffect(() => {
+    if (isAiDropdownOpen) {
+      updateAiDropdownPos();
+      const handleScroll = () => updateAiDropdownPos();
+      window.addEventListener("scroll", handleScroll, true);
+      window.addEventListener("resize", handleScroll);
+      return () => {
+        window.removeEventListener("scroll", handleScroll, true);
+        window.removeEventListener("resize", handleScroll);
+      };
+    }
+  }, [isAiDropdownOpen, updateAiDropdownPos]);
 
   const DEFAULT_FALLBACK_STAGES = [
     { id: "stage_researching", name: "Researching", color: "slate" },
@@ -131,8 +183,8 @@ export function ProspectDetailClient({
     { id: "stage_discovery_completed", name: "Discovery Completed", color: "yellow" },
     { id: "stage_proposal_sent", name: "Proposal Sent", color: "violet" },
     { id: "stage_negotiation", name: "Negotiation", color: "orange" },
-    { id: "stage_closed_won", name: "Closed Won", color: "emerald" },
-    { id: "stage_closed_lost", name: "Closed Lost", color: "rose" },
+    { id: "stage_closed_won", name: "Closed Won", color: "emerald", isClosedWon: true },
+    { id: "stage_closed_lost", name: "Closed Lost", color: "rose", isClosedLost: true },
     { id: "stage_nurture", name: "Nurture", color: "teal" },
     { id: "stage_disqualified", name: "Disqualified", color: "zinc" },
   ];
@@ -144,6 +196,39 @@ export function ProspectDetailClient({
   const currentStage = useMemo(() => {
     return effectiveStages.find((s) => s.id === currentStageId) || effectiveStages[0];
   }, [effectiveStages, currentStageId]);
+
+  const getStageBadgeColor = (color?: string, isWon?: boolean, isLost?: boolean) => {
+    if (isWon) return "bg-emerald-500 text-emerald-500 border-emerald-500/30";
+    if (isLost) return "bg-rose-500 text-rose-500 border-rose-500/30";
+    switch (color?.toLowerCase()) {
+      case "blue":
+      case "sky":
+        return "bg-blue-500 text-blue-500 border-blue-500/30";
+      case "cyan":
+        return "bg-cyan-500 text-cyan-500 border-cyan-500/30";
+      case "indigo":
+        return "bg-indigo-500 text-indigo-500 border-indigo-500/30";
+      case "purple":
+        return "bg-purple-500 text-purple-500 border-purple-500/30";
+      case "amber":
+      case "yellow":
+        return "bg-amber-500 text-amber-500 border-amber-500/30";
+      case "violet":
+        return "bg-violet-500 text-violet-500 border-violet-500/30";
+      case "orange":
+        return "bg-orange-500 text-orange-500 border-orange-500/30";
+      case "emerald":
+      case "green":
+        return "bg-emerald-500 text-emerald-500 border-emerald-500/30";
+      case "rose":
+      case "red":
+        return "bg-rose-500 text-rose-500 border-rose-500/30";
+      case "teal":
+        return "bg-teal-500 text-teal-500 border-teal-500/30";
+      default:
+        return "bg-slate-400 text-slate-400 border-slate-400/30";
+    }
+  };
 
   // Quick Stage Change Handler
   const handleQuickStageChange = async (newStageId: string) => {
@@ -473,10 +558,14 @@ export function ProspectDetailClient({
           {/* Header Quick Actions */}
           <div className="flex flex-wrap items-center gap-2">
             {/* 1. Interactive Pipeline Stage Selector Dropdown */}
-            <div ref={stageDropdownRef} className="relative">
+            <div className="relative inline-block">
               <button
+                ref={stageBtnRef}
                 type="button"
-                onClick={() => setIsStageDropdownOpen((prev) => !prev)}
+                onClick={() => {
+                  if (!isStageDropdownOpen) updateStageDropdownPos();
+                  setIsStageDropdownOpen((prev) => !prev);
+                }}
                 disabled={isUpdatingStage}
                 className="h-9 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 font-medium flex items-center gap-2 shadow-2xs hover:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary transition-all cursor-pointer"
                 title="Change Pipeline Stage"
@@ -484,54 +573,23 @@ export function ProspectDetailClient({
                 {isUpdatingStage ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
                 ) : (
-                  <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  <span
+                    className={`h-2.5 w-2.5 rounded-full ${
+                      getStageBadgeColor(currentStage?.color, currentStage?.isClosedWon, currentStage?.isClosedLost).split(" ")[0]
+                    }`}
+                  />
                 )}
-                <span>Stage: {currentStage?.name || "Unassigned"}</span>
+                <span>Stage: <strong className="font-semibold text-foreground">{currentStage?.name || "Unassigned"}</strong></span>
                 <ChevronDown
                   className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${
                     isStageDropdownOpen ? "rotate-180" : ""
                   }`}
                 />
               </button>
-
-              {isStageDropdownOpen && (
-                <div className="absolute left-0 top-full mt-1.5 w-60 p-1.5 rounded-2xl bg-white dark:bg-[#121218] border border-slate-200/90 dark:border-zinc-800 shadow-2xl z-[80] text-xs space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
-                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/40 mb-1">
-                    Move Pipeline Stage
-                  </div>
-                  <div className="max-h-64 overflow-y-auto space-y-0.5 scrollbar-thin">
-                    {effectiveStages.map((s) => {
-                      const isSelected = s.id === currentStageId;
-                      return (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() => handleQuickStageChange(s.id)}
-                          className={`w-full px-2.5 py-1.5 rounded-xl text-left flex items-center justify-between transition-colors cursor-pointer ${
-                            isSelected
-                              ? "bg-primary/10 text-primary font-semibold"
-                              : "text-foreground hover:bg-muted/70 dark:hover:bg-zinc-800/80"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 truncate">
-                            <span
-                              className={`h-2 w-2 rounded-full shrink-0 ${
-                                isSelected ? "bg-primary" : "bg-muted-foreground/50"
-                              }`}
-                            />
-                            <span className="truncate">{s.name}</span>
-                          </div>
-                          {isSelected && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* 2. AI Prompt Summary Split / Actions Dropdown */}
-            <div ref={aiDropdownRef} className="relative inline-flex items-center rounded-xl shadow-xs">
+            <div className="relative inline-flex items-center rounded-xl shadow-xs">
               <Button
                 size="sm"
                 variant="gradient"
@@ -543,8 +601,12 @@ export function ProspectDetailClient({
               </Button>
 
               <button
+                ref={aiBtnRef}
                 type="button"
-                onClick={() => setIsAiDropdownOpen((prev) => !prev)}
+                onClick={() => {
+                  if (!isAiDropdownOpen) updateAiDropdownPos();
+                  setIsAiDropdownOpen((prev) => !prev);
+                }}
                 className="h-8 px-2 bg-gradient-to-tr from-violet-600 to-indigo-500 text-white rounded-r-xl hover:brightness-110 focus:outline-none transition-all flex items-center justify-center cursor-pointer"
                 title="Quick AI Prompt Actions & Templates"
               >
@@ -554,9 +616,112 @@ export function ProspectDetailClient({
                   }`}
                 />
               </button>
+            </div>
 
-              {isAiDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-64 p-1.5 rounded-2xl bg-white dark:bg-[#121218] border border-slate-200/90 dark:border-zinc-800 shadow-2xl z-50 text-xs space-y-1 animate-in fade-in zoom-in-95 duration-100">
+            {/* Portal-Rendered Pipeline Stage Selection Menu */}
+            {isStageDropdownOpen && mounted && typeof document !== "undefined" && createPortal(
+              <>
+                {/* Backdrop for outside click / tap dismissal */}
+                <div
+                  className="fixed inset-0 z-[99998] bg-black/20 sm:bg-transparent"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsStageDropdownOpen(false);
+                  }}
+                />
+
+                {/* Floating 2-Column Stage Selector Card */}
+                <div
+                  style={{
+                    position: "fixed",
+                    top: `${stageDropdownPos.top}px`,
+                    left: `${stageDropdownPos.left}px`,
+                    width: "min(480px, calc(100vw - 24px))",
+                  }}
+                  className="z-[99999] p-3.5 rounded-3xl bg-white/98 dark:bg-[#121218]/98 backdrop-blur-2xl border border-slate-200/90 dark:border-zinc-800 shadow-2xl text-foreground dark:text-zinc-100 animate-in fade-in zoom-in-95 duration-150 text-xs space-y-3 pointer-events-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Header: Title & Current Stage */}
+                  <div className="flex items-center justify-between px-1 pb-2 border-b border-border/50">
+                    <div>
+                      <div className="font-bold text-xs text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <Sliders className="h-3.5 w-3.5 text-primary" />
+                        <span>Move Pipeline Stage</span>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground pt-0.5">
+                        Current: <span className="font-semibold text-foreground">{currentStage?.name}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsStageDropdownOpen(false)}
+                      className="h-6 w-6 rounded-full bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors"
+                      aria-label="Close"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  {/* 2-Column Responsive Grid of All 13 Stages */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-[380px] sm:max-h-none overflow-y-auto sm:overflow-visible">
+                    {effectiveStages.map((s, idx) => {
+                      const isSelected = s.id === currentStageId;
+                      const badgeColorClass = getStageBadgeColor(s.color, s.isClosedWon, s.isClosedLost);
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => handleQuickStageChange(s.id)}
+                          className={`px-3 py-2 rounded-2xl text-left flex items-center justify-between transition-all cursor-pointer border ${
+                            isSelected
+                              ? "bg-primary/10 dark:bg-primary/20 border-primary/40 text-primary font-bold shadow-xs scale-[1.01]"
+                              : "border-transparent bg-muted/40 hover:bg-muted/90 dark:bg-zinc-800/40 dark:hover:bg-zinc-800 text-foreground"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-mono text-[10px] opacity-50 w-4">{idx + 1}.</span>
+                            <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${badgeColorClass.split(" ")[0]}`} />
+                            <span className="truncate text-xs font-medium">{s.name}</span>
+                          </div>
+                          {isSelected ? (
+                            <Check className="h-4 w-4 text-primary shrink-0 ml-1.5" />
+                          ) : s.isClosedWon ? (
+                            <span className="text-[9px] font-bold uppercase text-emerald-500 shrink-0 ml-1">Won</span>
+                          ) : s.isClosedLost ? (
+                            <span className="text-[9px] font-bold uppercase text-rose-500 shrink-0 ml-1">Lost</span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>,
+              document.body
+            )}
+
+            {/* Portal-Rendered AI Quick Actions Dropdown */}
+            {isAiDropdownOpen && mounted && typeof document !== "undefined" && createPortal(
+              <>
+                {/* Backdrop for outside click / tap dismissal */}
+                <div
+                  className="fixed inset-0 z-[99998] bg-black/20 sm:bg-transparent"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsAiDropdownOpen(false);
+                  }}
+                />
+
+                {/* Floating AI Actions Menu */}
+                <div
+                  style={{
+                    position: "fixed",
+                    top: `${aiDropdownPos.top}px`,
+                    left: `${aiDropdownPos.left}px`,
+                    width: "min(280px, calc(100vw - 24px))",
+                  }}
+                  className="z-[99999] p-2 rounded-3xl bg-white/98 dark:bg-[#121218]/98 backdrop-blur-2xl border border-slate-200/90 dark:border-zinc-800 shadow-2xl text-foreground dark:text-zinc-100 animate-in fade-in zoom-in-95 duration-150 text-xs space-y-1 pointer-events-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/40">
                     AI Actions & Prompt Templates
                   </div>
@@ -609,8 +774,9 @@ export function ProspectDetailClient({
                     {quickCopied === "COLD_CALL" && <Check className="h-3.5 w-3.5 text-emerald-500" />}
                   </button>
                 </div>
-              )}
-            </div>
+              </>,
+              document.body
+            )}
 
             <Button
               size="sm"
