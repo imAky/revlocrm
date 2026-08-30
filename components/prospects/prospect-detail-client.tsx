@@ -121,9 +121,29 @@ export function ProspectDetailClient({
     };
   }, []);
 
+  const DEFAULT_FALLBACK_STAGES = [
+    { id: "stage_researching", name: "Researching", color: "slate" },
+    { id: "stage_qualified", name: "Qualified", color: "blue" },
+    { id: "stage_ready_to_contact", name: "Ready to Contact", color: "cyan" },
+    { id: "stage_contacted", name: "Contacted", color: "indigo" },
+    { id: "stage_engaged", name: "Engaged", color: "purple" },
+    { id: "stage_discovery_scheduled", name: "Discovery Scheduled", color: "amber" },
+    { id: "stage_discovery_completed", name: "Discovery Completed", color: "yellow" },
+    { id: "stage_proposal_sent", name: "Proposal Sent", color: "violet" },
+    { id: "stage_negotiation", name: "Negotiation", color: "orange" },
+    { id: "stage_closed_won", name: "Closed Won", color: "emerald" },
+    { id: "stage_closed_lost", name: "Closed Lost", color: "rose" },
+    { id: "stage_nurture", name: "Nurture", color: "teal" },
+    { id: "stage_disqualified", name: "Disqualified", color: "zinc" },
+  ];
+
+  const effectiveStages = useMemo(() => {
+    return stages && stages.length > 0 ? stages : DEFAULT_FALLBACK_STAGES;
+  }, [stages]);
+
   const currentStage = useMemo(() => {
-    return stages.find((s) => s.id === currentStageId) || stages[0];
-  }, [stages, currentStageId]);
+    return effectiveStages.find((s) => s.id === currentStageId) || effectiveStages[0];
+  }, [effectiveStages, currentStageId]);
 
   // Quick Stage Change Handler
   const handleQuickStageChange = async (newStageId: string) => {
@@ -475,12 +495,12 @@ export function ProspectDetailClient({
               </button>
 
               {isStageDropdownOpen && (
-                <div className="absolute left-0 top-full mt-1.5 w-60 p-1.5 rounded-2xl bg-white dark:bg-[#121218] border border-slate-200/90 dark:border-zinc-800 shadow-2xl z-50 text-xs space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute left-0 top-full mt-1.5 w-60 p-1.5 rounded-2xl bg-white dark:bg-[#121218] border border-slate-200/90 dark:border-zinc-800 shadow-2xl z-[80] text-xs space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
                   <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/40 mb-1">
                     Move Pipeline Stage
                   </div>
-                  <div className="max-h-60 overflow-y-auto space-y-0.5 scrollbar-none">
-                    {stages.map((s) => {
+                  <div className="max-h-64 overflow-y-auto space-y-0.5 scrollbar-thin">
+                    {effectiveStages.map((s) => {
                       const isSelected = s.id === currentStageId;
                       return (
                         <button

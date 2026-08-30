@@ -13,6 +13,7 @@ import {
   prospectMedia,
 } from "@/lib/db/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
+import { getOrSeedWorkspaceStages } from "@/lib/db/stages";
 import { ProspectDetailClient } from "@/components/prospects/prospect-detail-client";
 import { notFound } from "next/navigation";
 
@@ -141,12 +142,8 @@ export default async function ProspectDetailPage({
       .where(eq(taskLogs.workspaceId, ctx.workspaceId))
       .orderBy(desc(taskLogs.createdAt)),
 
-    // Pipeline Stages
-    db
-      .select()
-      .from(pipelineStages)
-      .where(eq(pipelineStages.workspaceId, ctx.workspaceId))
-      .orderBy(pipelineStages.orderIndex),
+    // Pipeline Stages (Guaranteed 13 stages)
+    getOrSeedWorkspaceStages(ctx.workspaceId),
 
     // Users
     db
