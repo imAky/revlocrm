@@ -719,6 +719,27 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
+                    <label className="block mb-1 font-semibold text-foreground">Company Email</label>
+                    <Input
+                      type="email"
+                      placeholder="info@company.com"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1 font-semibold text-foreground">Business Phone</label>
+                    <Input
+                      placeholder="+1 (512) 555-0199"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
                     <label className="block mb-1 font-semibold text-foreground">Google Maps URL</label>
                     <Input
                       placeholder="https://maps.google.com/..."
@@ -748,22 +769,12 @@ export function ProspectCreateModal({
                     />
                   </div>
 
-                  <div>
+                  <div className="sm:col-span-2">
                     <label className="block mb-1 font-semibold text-foreground">Company LinkedIn URL</label>
                     <Input
                       placeholder="https://linkedin.com/company/..."
                       value={formData.linkedInUrl}
                       onChange={(e) => setFormData({ ...formData, linkedInUrl: e.target.value })}
-                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block mb-1 font-semibold text-foreground">Business Phone</label>
-                    <Input
-                      placeholder="+1 (512) 555-0199"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
@@ -1149,6 +1160,27 @@ export function ProspectCreateModal({
                   </div>
 
                   <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Company Email</label>
+                    <Input
+                      type="email"
+                      placeholder="info@company.com"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 font-semibold text-foreground">Business Phone</label>
+                    <Input
+                      placeholder="+1 (512) 555-0199"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
                     <label className="block mb-1.5 font-semibold text-foreground">Google Maps URL</label>
                     <Input
                       placeholder="https://maps.google.com/..."
@@ -1178,22 +1210,12 @@ export function ProspectCreateModal({
                     />
                   </div>
 
-                  <div>
+                  <div className="sm:col-span-2">
                     <label className="block mb-1.5 font-semibold text-foreground">Company LinkedIn URL</label>
                     <Input
                       placeholder="https://linkedin.com/company/..."
                       value={formData.linkedInUrl}
                       onChange={(e) => setFormData({ ...formData, linkedInUrl: e.target.value })}
-                      className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block mb-1.5 font-semibold text-foreground">Business Phone</label>
-                    <Input
-                      placeholder="+1 (512) 555-0199"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
