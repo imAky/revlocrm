@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Sparkles, Flame, Star, Globe, Target, BarChart2, Info, ChevronRight, CheckCircle2 } from "lucide-react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { Sparkles, Flame, Star, Globe, Target, BarChart2, Info, ChevronRight, CheckCircle2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { calculateLeadScore, ProspectScoringInput, ScoreResult } from "@/lib/scoring/lead-scorer";
@@ -14,6 +14,8 @@ interface LeadScoreBreakdownProps {
   scoringInput?: ProspectScoringInput;
   size?: "sm" | "md" | "lg";
   showLabel?: boolean;
+  side?: "top" | "bottom" | "auto";
+  align?: "start" | "center" | "end";
   className?: string;
 }
 
@@ -24,10 +26,29 @@ export function LeadScoreBreakdownPopover({
   scoringInput,
   size = "md",
   showLabel = false,
+  side = "bottom",
+  align = "center",
   className = "",
 }: LeadScoreBreakdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMethodologyOpen, setIsMethodologyOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("touchstart", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
+    };
+  }, [isOpen]);
 
   // Compute or extrapolate score & breakdown
   const computedResult: ScoreResult = useMemo(() => {
@@ -111,9 +132,25 @@ export function LeadScoreBreakdownPopover({
     }
   }, [grade]);
 
+  const alignClass = useMemo(() => {
+    switch (align) {
+      case "start":
+        return "sm:left-0 sm:translate-x-0";
+      case "end":
+        return "sm:right-0 sm:left-auto sm:translate-x-0";
+      default:
+        return "sm:left-1/2 sm:-translate-x-1/2";
+    }
+  }, [align]);
+
+  const sideClass = useMemo(() => {
+    return side === "top" ? "sm:bottom-full sm:mb-2" : "sm:top-full sm:mt-2";
+  }, [side]);
+
   return (
     <>
       <div
+        ref={containerRef}
         className={`relative inline-block ${className}`}
         onMouseEnter={() => setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
@@ -142,15 +179,26 @@ export function LeadScoreBreakdownPopover({
           </Badge>
         </button>
 
+        {/* Mobile Backdrop to catch outside taps */}
+        {isOpen && (
+          <div
+            className="fixed inset-0 z-[68] sm:hidden bg-black/40 backdrop-blur-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(false);
+            }}
+          />
+        )}
+
         {/* Floating Glassmorphic Breakdown Card Popover */}
         {isOpen && (
           <div
-            className="absolute z-50 bottom-full mb-2 left-1/2 -translate-x-1/2 w-80 sm:w-88 p-4 rounded-3xl bg-white/95 dark:bg-[#121218]/95 backdrop-blur-2xl border border-slate-200/90 dark:border-zinc-800 shadow-2xl text-foreground dark:text-zinc-100 animate-in fade-in zoom-in-95 duration-150 text-xs space-y-3.5"
+            className={`fixed sm:absolute z-[70] inset-x-3 top-20 sm:inset-x-auto sm:top-auto ${sideClass} ${alignClass} w-auto sm:w-88 max-w-sm sm:max-w-none mx-auto sm:mx-0 p-4 rounded-3xl bg-white/98 dark:bg-[#121218]/98 backdrop-blur-2xl border border-slate-200/90 dark:border-zinc-800 shadow-2xl text-foreground dark:text-zinc-100 animate-in fade-in zoom-in-95 duration-150 text-xs space-y-3.5`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header: Score Banner */}
-            <div className={`p-3 rounded-2xl bg-gradient-to-tr ${gradeConfig.bgGlow} border ${gradeConfig.border} flex items-center justify-between`}>
-              <div>
+            <div className={`p-3 rounded-2xl bg-gradient-to-tr ${gradeConfig.bgGlow} border ${gradeConfig.border} flex items-center justify-between relative`}>
+              <div className="pr-2">
                 <div className="flex items-center gap-1.5">
                   <span className="font-bold text-sm text-foreground">
                     {prospectName ? `${prospectName}` : "ICP Rating"}
@@ -161,13 +209,24 @@ export function LeadScoreBreakdownPopover({
                 </div>
               </div>
 
-              <div className="text-right">
-                <div className="text-xl font-extrabold font-mono text-foreground leading-none">
-                  {score}<span className="text-xs text-muted-foreground font-normal">/100</span>
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <div className="text-xl font-extrabold font-mono text-foreground leading-none">
+                    {score}<span className="text-xs text-muted-foreground font-normal">/100</span>
+                  </div>
+                  <Badge variant={gradeConfig.variant} className="text-[9px] font-mono font-bold mt-1">
+                    Grade {grade}
+                  </Badge>
                 </div>
-                <Badge variant={gradeConfig.variant} className="text-[9px] font-mono font-bold mt-1">
-                  Grade {grade}
-                </Badge>
+
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="sm:hidden h-6 w-6 rounded-full bg-background/60 hover:bg-background text-muted-foreground hover:text-foreground flex items-center justify-center shrink-0 cursor-pointer ml-1"
+                  aria-label="Close"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               </div>
             </div>
 

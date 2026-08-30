@@ -64,6 +64,8 @@ export interface CreateProspectInput {
   contactEmail?: string;
   contactPhone?: string;
   contactLinkedIn?: string;
+  contactInstagram?: string;
+  contactFacebook?: string;
   contactPreferredChannel?: string;
   contactIsDecisionMaker?: boolean;
   primaryContact?: {
@@ -73,6 +75,8 @@ export interface CreateProspectInput {
     email?: string;
     phone?: string;
     linkedInUrl?: string;
+    instagramUrl?: string;
+    facebookUrl?: string;
     preferredChannel?: string;
     isDecisionMaker?: boolean;
   };
@@ -93,6 +97,8 @@ export async function createProspectAction(input: CreateProspectInput) {
   const contactEmail = input.contactEmail || input.primaryContact?.email;
   const contactPhone = input.contactPhone || input.primaryContact?.phone;
   const contactLinkedIn = input.contactLinkedIn || input.primaryContact?.linkedInUrl;
+  const contactInstagram = input.contactInstagram || input.primaryContact?.instagramUrl;
+  const contactFacebook = input.contactFacebook || input.primaryContact?.facebookUrl;
   const contactPref = input.contactPreferredChannel || input.primaryContact?.preferredChannel || "EMAIL";
   const contactIsDM = input.contactIsDecisionMaker !== undefined 
     ? input.contactIsDecisionMaker 
@@ -187,6 +193,8 @@ export async function createProspectAction(input: CreateProspectInput) {
       email: contactEmail,
       phone: contactPhone,
       linkedInUrl: contactLinkedIn,
+      facebookUrl: contactFacebook,
+      instagramUrl: contactInstagram,
       preferredChannel: contactPref,
       isDecisionMaker: contactIsDM,
     });

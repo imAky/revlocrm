@@ -334,6 +334,7 @@ export const contacts = pgTable(
     phone: text("phone"),
     linkedInUrl: text("linkedin_url"),
     facebookUrl: text("facebook_url"),
+    instagramUrl: text("instagram_url"),
     preferredChannel: text("preferred_channel"), // 'EMAIL' | 'PHONE' | 'LINKEDIN' | 'WHATSAPP'
     isDecisionMaker: boolean("is_decision_maker").default(false).notNull(),
     notes: text("notes"),

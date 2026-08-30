@@ -146,6 +146,8 @@ export function ProspectDetailClient({
     email: "",
     phone: "",
     linkedInUrl: "",
+    instagramUrl: "",
+    facebookUrl: "",
     preferredChannel: "EMAIL",
     isDecisionMaker: true,
   });
@@ -215,6 +217,8 @@ export function ProspectDetailClient({
       email: "",
       phone: "",
       linkedInUrl: "",
+      instagramUrl: "",
+      facebookUrl: "",
       preferredChannel: "EMAIL",
       isDecisionMaker: true,
     });
@@ -283,6 +287,8 @@ export function ProspectDetailClient({
                   scoringInput={editForm as any}
                   size="md"
                   showLabel
+                  side="bottom"
+                  align="start"
                 />
                 {prospect.businessStatus && (
                   <Badge variant="outline" className="text-[10px] uppercase font-mono">
@@ -809,6 +815,22 @@ export function ProspectDetailClient({
                           <ExternalLink className="h-3.5 w-3.5 text-sky-400" />
                           <a href={cnt.linkedInUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                             LinkedIn Profile
+                          </a>
+                        </div>
+                      )}
+                      {cnt.instagramUrl && (
+                        <div className="flex items-center gap-1.5">
+                          <ExternalLink className="h-3.5 w-3.5 text-pink-400" />
+                          <a href={cnt.instagramUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                            Instagram Profile
+                          </a>
+                        </div>
+                      )}
+                      {cnt.facebookUrl && (
+                        <div className="flex items-center gap-1.5">
+                          <ExternalLink className="h-3.5 w-3.5 text-blue-500" />
+                          <a href={cnt.facebookUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                            Facebook Profile
                           </a>
                         </div>
                       )}
@@ -1447,6 +1469,24 @@ export function ProspectDetailClient({
                 placeholder="https://linkedin.com/in/..."
                 value={contactForm.linkedInUrl}
                 onChange={(e) => setContactForm({ ...contactForm, linkedInUrl: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block mb-1 font-medium text-foreground">Instagram Profile URL</label>
+              <Input
+                placeholder="https://instagram.com/..."
+                value={contactForm.instagramUrl}
+                onChange={(e) => setContactForm({ ...contactForm, instagramUrl: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block mb-1 font-medium text-foreground">Facebook Profile URL</label>
+              <Input
+                placeholder="https://facebook.com/..."
+                value={contactForm.facebookUrl}
+                onChange={(e) => setContactForm({ ...contactForm, facebookUrl: e.target.value })}
               />
             </div>
 
