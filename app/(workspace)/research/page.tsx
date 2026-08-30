@@ -1,19 +1,20 @@
 import { requireAuth } from "@/lib/permissions/server-guards";
 import { db } from "@/lib/db";
-import { researchKeywords, users, prospects } from "@/lib/db/schema";
+import { researchKeywords, users, prospects, memberships } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { ResearchClient } from "@/components/research/research-client";
 
 export default async function ResearchPage() {
   const ctx = await requireAuth();
 
-  const [rawKeywords, rawProspects] = await Promise.all([
+  const [rawKeywords, rawProspects, workspaceUsers] = await Promise.all([
     db
       .select({
         id: researchKeywords.id,
         workspaceId: researchKeywords.workspaceId,
         userId: researchKeywords.userId,
         userName: users.name,
+        userEmail: users.email,
         keyword: researchKeywords.keyword,
         normalizedKeyword: researchKeywords.normalizedKeyword,
         niche: researchKeywords.niche,
@@ -52,19 +53,43 @@ export default async function ResearchPage() {
         )
       )
       .orderBy(desc(prospects.createdAt)),
+
+    db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+      })
+      .from(users)
+      .leftJoin(memberships, eq(users.id, memberships.userId))
+      .where(eq(memberships.workspaceId, ctx.workspaceId)),
   ]);
 
   const initialKeywords = rawKeywords.map((k) => ({
     ...k,
-    userName: k.userName || "Team Member",
+    userName: k.userName || (k.userId === ctx.userId ? "You" : "Team Member"),
   }));
+
+  // Fallback to all users if memberships query is empty for local dev/demo
+  const allWorkspaceUsers =
+    workspaceUsers && workspaceUsers.length > 0
+      ? workspaceUsers
+      : await db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+          })
+          .from(users);
 
   return (
     <ResearchClient
       initialKeywords={initialKeywords}
       existingProspects={rawProspects}
+      workspaceUsers={allWorkspaceUsers}
       workspaceId={ctx.workspaceId}
       currentUserId={ctx.userId}
+      currentUserName={ctx.name || "You"}
     />
   );
 }

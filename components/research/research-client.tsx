@@ -30,12 +30,14 @@ import {
   CheckSquare,
   Square,
   User,
+  Users2,
   Tag,
   AlertTriangle,
   ArrowUpDown,
   ChevronUp,
   ChevronDown,
   SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -75,23 +77,35 @@ export interface ExistingProspectOption {
   leadSource?: string | null;
 }
 
+export interface WorkspaceUserOption {
+  id: string;
+  name: string;
+  email?: string | null;
+  role?: string | null;
+}
+
 interface ResearchClientProps {
   initialKeywords: ResearchKeywordItem[];
   existingProspects?: ExistingProspectOption[];
+  workspaceUsers?: WorkspaceUserOption[];
   workspaceId: string;
   currentUserId: string;
+  currentUserName?: string;
 }
 
 export function ResearchClient({
   initialKeywords = [],
   existingProspects = [],
+  workspaceUsers = [],
   workspaceId,
   currentUserId,
+  currentUserName = "You",
 }: ResearchClientProps) {
   const [keywords, setKeywords] = useState<ResearchKeywordItem[]>(initialKeywords);
 
   // Filter & Sort States
   const [activeTab, setActiveTab] = useState<"ALL" | "PENDING" | "SEARCHED" | "FAVORITE">("ALL");
+  const [selectedUserFilter, setSelectedUserFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNiche, setSelectedNiche] = useState("ALL");
   const [selectedEngine, setSelectedEngine] = useState("ALL");
@@ -161,6 +175,64 @@ export function ResearchClient({
     return { total, pending, searched, favorite, withLeads, totalLeadsFound, completionRate };
   }, [keywords]);
 
+  // User statistics & creator mapping
+  const userStats = useMemo(() => {
+    const countsByUser: Record<string, number> = {};
+    let myCount = 0;
+    let otherCount = 0;
+    let unassignedCount = 0;
+
+    keywords.forEach((k) => {
+      const uId = k.userId || "unassigned";
+      countsByUser[uId] = (countsByUser[uId] || 0) + 1;
+      if (k.userId === currentUserId) {
+        myCount++;
+      } else if (k.userId) {
+        otherCount++;
+      } else {
+        unassignedCount++;
+      }
+    });
+
+    return { countsByUser, myCount, otherCount, unassignedCount };
+  }, [keywords, currentUserId]);
+
+  // Combined creator options for dropdown filter
+  const creatorOptions = useMemo(() => {
+    const userMap = new Map<
+      string,
+      { id: string; name: string; email?: string | null; role?: string | null; count: number }
+    >();
+
+    // 1. Add known workspace users
+    workspaceUsers.forEach((u) => {
+      userMap.set(u.id, {
+        id: u.id,
+        name: u.id === currentUserId ? "You" : u.name,
+        email: u.email,
+        role: u.role,
+        count: userStats.countsByUser[u.id] || 0,
+      });
+    });
+
+    // 2. Add any keyword authors not already in workspace users list
+    keywords.forEach((k) => {
+      if (k.userId && !userMap.has(k.userId)) {
+        userMap.set(k.userId, {
+          id: k.userId,
+          name: k.userName || (k.userId === currentUserId ? "You" : "Team Member"),
+          count: userStats.countsByUser[k.userId] || 0,
+        });
+      }
+    });
+
+    return Array.from(userMap.values()).sort((a, b) => {
+      if (a.id === currentUserId) return -1;
+      if (b.id === currentUserId) return 1;
+      return b.count - a.count;
+    });
+  }, [workspaceUsers, keywords, userStats.countsByUser, currentUserId]);
+
   // Unique Niches for Filter Pills
   const availableNiches = useMemo(() => {
     const set = new Set<string>();
@@ -177,6 +249,15 @@ export function ResearchClient({
       if (activeTab === "PENDING" && item.status !== "PENDING") return false;
       if (activeTab === "SEARCHED" && item.status !== "SEARCHED") return false;
       if (activeTab === "FAVORITE" && item.status !== "FAVORITE") return false;
+
+      // User / Creator filter
+      if (selectedUserFilter === "ME") {
+        if (item.userId !== currentUserId) return false;
+      } else if (selectedUserFilter === "TEAM") {
+        if (!item.userId || item.userId === currentUserId) return false;
+      } else if (selectedUserFilter !== "ALL") {
+        if (item.userId !== selectedUserFilter) return false;
+      }
 
       // Leads count filter
       const leadCount = item.prospectsFoundCount || 0;
@@ -201,7 +282,8 @@ export function ResearchClient({
         const matchNiche = item.niche?.toLowerCase().includes(q);
         const matchCity = item.city?.toLowerCase().includes(q);
         const matchNotes = item.notes?.toLowerCase().includes(q);
-        if (!matchKeyword && !matchNiche && !matchCity && !matchNotes) {
+        const matchAuthor = item.userName?.toLowerCase().includes(q);
+        if (!matchKeyword && !matchNiche && !matchCity && !matchNotes && !matchAuthor) {
           return false;
         }
       }
@@ -228,7 +310,7 @@ export function ResearchClient({
       // Default: NEWEST
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-  }, [keywords, activeTab, selectedNiche, selectedEngine, leadsFilter, searchQuery, sortOption]);
+  }, [keywords, activeTab, selectedUserFilter, selectedNiche, selectedEngine, leadsFilter, searchQuery, sortOption, currentUserId]);
 
   // 1-Click Launchers (opens search and records lastSearchedAt without forcing status to done)
   const handleLaunchGoogleMaps = async (item: ResearchKeywordItem) => {
@@ -320,7 +402,7 @@ export function ResearchClient({
           id: res.id,
           workspaceId,
           userId: currentUserId,
-          userName: "You",
+          userName: currentUserName || "You",
           keyword: singleForm.keyword.trim(),
           normalizedKeyword: singleForm.keyword.trim().toLowerCase(),
           niche: singleForm.niche.trim() || null,
@@ -633,15 +715,46 @@ export function ResearchClient({
         </div>
 
         {/* 2. Executive Metrics Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 mt-6 border-t border-slate-100 dark:border-zinc-800/80">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-6 mt-6 border-t border-slate-100 dark:border-zinc-800/80">
           {/* Total Keywords */}
-          <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-200/60 dark:border-zinc-800">
+          <div
+            onClick={() => setSelectedUserFilter("ALL")}
+            className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+              selectedUserFilter === "ALL"
+                ? "bg-slate-100/90 dark:bg-zinc-800/90 border-slate-300 dark:border-zinc-700 shadow-xs"
+                : "bg-slate-50 dark:bg-zinc-900/60 border-slate-200/60 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700"
+            }`}
+          >
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
               <span className="font-semibold text-foreground/80">Total Targets</span>
               <Compass className="h-3.5 w-3.5 text-indigo-500" />
             </div>
             <div className="text-xl font-bold text-foreground">{stats.total}</div>
             <div className="text-[10px] text-muted-foreground mt-0.5">Tracked keywords</div>
+          </div>
+
+          {/* Added by Current User */}
+          <div
+            onClick={() => setSelectedUserFilter(selectedUserFilter === "ME" ? "ALL" : "ME")}
+            className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+              selectedUserFilter === "ME"
+                ? "bg-indigo-500/15 dark:bg-indigo-500/20 border-indigo-500 shadow-xs ring-1 ring-indigo-500/30"
+                : "bg-indigo-500/5 border-indigo-500/20 hover:border-indigo-500/40"
+            }`}
+          >
+            <div className="flex items-center justify-between text-xs text-indigo-600 dark:text-indigo-400 mb-1">
+              <span className="font-semibold">Added by Me</span>
+              <User className="h-3.5 w-3.5 text-indigo-500" />
+            </div>
+            <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+              {userStats.myCount}{" "}
+              <span className="text-xs font-normal text-muted-foreground">
+                ({stats.total > 0 ? Math.round((userStats.myCount / stats.total) * 100) : 0}%)
+              </span>
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              {selectedUserFilter === "ME" ? "Active Filter • Click to clear" : "Click to view yours"}
+            </div>
           </div>
 
           {/* Research Queue (Pending) */}
@@ -777,8 +890,87 @@ export function ResearchClient({
           </div>
         </div>
 
+        {/* User / Author Filter Strip */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            <span className="text-[11px] font-semibold text-muted-foreground mr-1 flex items-center gap-1">
+              <User className="h-3 w-3 text-primary" />
+              <span>Added By:</span>
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setSelectedUserFilter("ALL")}
+              className={`px-2.5 py-1 rounded-xl text-[11px] font-medium border transition-all cursor-pointer whitespace-nowrap ${
+                selectedUserFilter === "ALL"
+                  ? "bg-primary text-primary-foreground border-primary shadow-2xs font-semibold"
+                  : "bg-muted/50 dark:bg-zinc-900/60 border-border/80 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              All Members ({stats.total})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedUserFilter("ME")}
+              className={`px-2.5 py-1 rounded-xl text-[11px] font-medium border transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                selectedUserFilter === "ME"
+                  ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs font-semibold"
+                  : "bg-indigo-500/10 dark:bg-indigo-500/15 border-indigo-500/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20"
+              }`}
+            >
+              <span>Added by Me</span>
+              <span className="text-[10px] opacity-90 font-mono">({userStats.myCount})</span>
+            </button>
+
+            {userStats.otherCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setSelectedUserFilter("TEAM")}
+                className={`px-2.5 py-1 rounded-xl text-[11px] font-medium border transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                  selectedUserFilter === "TEAM"
+                    ? "bg-violet-600 text-white border-violet-600 shadow-2xs font-semibold"
+                    : "bg-violet-500/10 dark:bg-violet-500/15 border-violet-500/30 text-violet-600 dark:text-violet-400 hover:bg-violet-500/20"
+                }`}
+              >
+                <span>Team Members</span>
+                <span className="text-[10px] opacity-90 font-mono">({userStats.otherCount})</span>
+              </button>
+            )}
+          </div>
+
+          {/* Specific Team Member Selector Dropdown */}
+          <div className="flex items-center gap-2 shrink-0">
+            <select
+              value={selectedUserFilter}
+              onChange={(e) => setSelectedUserFilter(e.target.value)}
+              className="h-8 px-2.5 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer max-w-[220px]"
+            >
+              <option value="ALL">👤 Filter by specific author...</option>
+              <option value="ME">⭐ Added by Me ({userStats.myCount})</option>
+              {creatorOptions.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.id === currentUserId ? "⭐ You" : `👤 ${u.name || "Member"}`} ({u.count})
+                </option>
+              ))}
+            </select>
+
+            {selectedUserFilter !== "ALL" && (
+              <button
+                type="button"
+                onClick={() => setSelectedUserFilter("ALL")}
+                className="h-8 px-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted transition-colors flex items-center gap-1 cursor-pointer"
+                title="Clear user filter"
+              >
+                <X className="h-3 w-3" />
+                <span className="hidden sm:inline">Clear Filter</span>
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Leads Count Filter Strip & Search Toolbar */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-1 border-t border-border/40">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-2 border-t border-border/40">
           {/* Leads Filter Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
             <span className="text-[11px] font-semibold text-muted-foreground mr-1 hidden sm:inline">
@@ -870,7 +1062,7 @@ export function ResearchClient({
         <div className="relative">
           <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search keyword target, city, or niche notes..."
+            placeholder="Search keyword target, city, author, or niche notes..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 h-9 text-xs bg-background/90 dark:bg-zinc-950/90 rounded-xl"
@@ -979,6 +1171,7 @@ export function ResearchClient({
                     </button>
                   </th>
                   <th className="py-3.5 px-3">Niche / Industry</th>
+                  <th className="py-3.5 px-3">Added By</th>
                   <th className="py-3.5 px-3">Status & Workflow</th>
                   <th className="py-3.5 px-3">
                     <button
@@ -1079,6 +1272,45 @@ export function ResearchClient({
                         ) : (
                           <span className="text-[11px] text-muted-foreground">—</span>
                         )}
+                      </td>
+
+                      {/* Added By / Author Column */}
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs ${
+                              item.userId === currentUserId
+                                ? "bg-gradient-to-tr from-indigo-600 to-violet-500 text-white"
+                                : "bg-muted dark:bg-zinc-800 text-muted-foreground border border-border/80"
+                            }`}
+                          >
+                            {(item.userId === currentUserId
+                              ? "ME"
+                              : item.userName || "U"
+                            )
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedUserFilter(item.userId || "ALL")}
+                              className="text-[11px] font-semibold text-foreground hover:text-primary hover:underline transition-colors truncate block text-left cursor-pointer"
+                              title={`Click to filter keywords added by ${item.userName || "this user"}`}
+                            >
+                              {item.userId === currentUserId ? (
+                                <span className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-bold">
+                                  You
+                                </span>
+                              ) : (
+                                <span>{item.userName || "Team Member"}</span>
+                              )}
+                            </button>
+                            <span className="text-[10px] text-muted-foreground block">
+                              {new Date(item.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
                       </td>
 
                       {/* Status Toggle Badge */}
