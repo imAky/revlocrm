@@ -63,34 +63,35 @@ async function runFullFunctionalAudit() {
     // -------------------------------------------------------------------------
     console.log("\n📌 2. Lead Scoring & Grading Deterministic Engine Audit");
 
-    // Test A+ tier prospect
+    // Test A+ tier prospect (Prime Modernization Opportunity: High Budget + High Reviews + Poor Website + Verified DM)
     const aPlusScore = calculateLeadScore({
       googleRating: "4.9",
       reviewCount: 85,
       websiteExists: true,
-      websiteQuality: "EXCELLENT",
-      mobileUx: "EXCELLENT",
-      ctaQuality: "STRONG",
-      quoteBookingFlow: "Interactive Flow",
-      trustSignals: "BBB A+ & GAF Master",
-      seoVisibility: "Top 3",
+      websiteQuality: "POOR",
+      mobileUx: "POOR",
+      ctaQuality: "POOR",
+      quoteBookingFlow: "MISSING",
       icpFit: "HIGH",
       abilityToPay: "HIGH",
       urgency: "HIGH",
       recurringPotential: "HIGH",
       buyingSignals: "Opening 2nd branch",
       hasDecisionMaker: true,
+      phone: "5125550199",
+      email: "owner@apexroofing.com",
     });
     assert(aPlusScore.score >= 85 && aPlusScore.grade === "A+", "A+ Lead Score & Grade Calculation", `Score: ${aPlusScore.score}, Grade: ${aPlusScore.grade}`);
 
-    // Test C tier prospect (Poor website, low review, low urgency)
+    // Test C/D tier prospect (Low Budget, Low Reviews, Low Urgency, No DM)
     const cScore = calculateLeadScore({
       googleRating: "3.2",
       reviewCount: 3,
       websiteExists: true,
-      websiteQuality: "POOR",
-      mobileUx: "POOR",
-      ctaQuality: "POOR",
+      websiteQuality: "EXCELLENT",
+      mobileUx: "EXCELLENT",
+      ctaQuality: "STRONG",
+      quoteBookingFlow: "EXISTS",
       icpFit: "LOW",
       abilityToPay: "LOW",
       urgency: "LOW",

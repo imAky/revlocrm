@@ -86,11 +86,11 @@ export function ScoringMethodologyModal({
               </div>
             </div>
 
-            {/* Pillar 2: Digital Presence (30 pts) */}
+            {/* Pillar 2: Digital Gap & Modernization Opportunity (30 pts) */}
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-900/80 border border-slate-200/70 dark:border-zinc-800 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-foreground text-xs">2. Digital Presence & Website UX</span>
+                  <span className="font-bold text-foreground text-xs">2. Digital Gap & Modernization Opportunity</span>
                   <Badge variant="info" className="text-[10px] font-mono font-bold">
                     Max 30 Pts
                   </Badge>
@@ -98,24 +98,24 @@ export function ScoringMethodologyModal({
                 <span className="text-[10px] font-semibold text-sky-500">30% Total Weight</span>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Evaluates online maturity, website responsiveness, booking flows, and call-to-action quality.
+                Evaluates the agency sales opportunity: businesses with poor websites, broken mobile UX, or missing booking flows receive higher priority opportunity points.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
                 <div className="flex items-center gap-1.5 text-foreground/90">
                   <CheckCircle2 className="h-3 w-3 text-sky-500 shrink-0" />
-                  <span>Active Website / Domain (+5 pts)</span>
+                  <span>Website Gap (Poor/Missing: +10, Fair: +7, Good: +4)</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-foreground/90">
                   <CheckCircle2 className="h-3 w-3 text-sky-500 shrink-0" />
-                  <span>Mobile & Desktop UX (+1 to +8 pts)</span>
+                  <span>Mobile UX Gap (Poor: +8, Fair: +5, Good: +2)</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-foreground/90">
                   <CheckCircle2 className="h-3 w-3 text-sky-500 shrink-0" />
-                  <span>Call-To-Action Quality (+1 to +8 pts)</span>
+                  <span>Booking Flow Gap (Missing: +7, Basic: +4)</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-foreground/90">
                   <CheckCircle2 className="h-3 w-3 text-sky-500 shrink-0" />
-                  <span>Online Quote / Booking Flow (+3 pts)</span>
+                  <span>CTA & Trust Signal Gap (+1 to +5 pts)</span>
                 </div>
               </div>
             </div>
@@ -146,7 +146,7 @@ export function ScoringMethodologyModal({
               </div>
             </div>
 
-            {/* Pillar 4: Outreach Readiness (15 pts) */}
+            {/* Pillar 4: Outreach Readiness & Key Decision Maker (15 pts) */}
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-900/80 border border-slate-200/70 dark:border-zinc-800 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -158,16 +158,20 @@ export function ScoringMethodologyModal({
                 <span className="text-[10px] font-semibold text-emerald-500">15% Total Weight</span>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Assesses whether actionable decision-maker contact intelligence and organic visibility exist.
+                Assesses whether actionable decision-maker contact intelligence and direct channels exist.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
                 <div className="flex items-center gap-1.5 text-foreground/90">
                   <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
-                  <span>Verified C-Level / Decision Maker on File (+10 pts)</span>
+                  <span>Decision Maker / Contact on File (+8 pts)</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-foreground/90">
                   <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
-                  <span>SEO Ranking / Search Visibility (+5 pts)</span>
+                  <span>Direct Phone & Email Channels (+4 pts)</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-foreground/90">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
+                  <span>LinkedIn / Social Profile Available (+3 pts)</span>
                 </div>
               </div>
             </div>

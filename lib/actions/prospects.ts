@@ -121,6 +121,15 @@ export async function createProspectAction(input: CreateProspectInput) {
     urgency: input.urgency,
     recurringPotential: input.recurringPotential,
     buyingSignals: input.buyingSignals,
+    phone: input.phone,
+    email: input.email,
+    linkedInUrl: input.linkedInUrl,
+    contactFirstName: contactFirst,
+    contactLastName: contactLast,
+    contactTitle: contactTitle,
+    contactEmail: contactEmail,
+    contactPhone: contactPhone,
+    contactLinkedIn: contactLinkedIn,
     hasDecisionMaker: !!contactFirst && contactIsDM,
   });
 
@@ -239,6 +248,7 @@ export async function updateProspectAction(
     googleRating: input.googleRating ?? prospect.googleRating,
     reviewCount: input.reviewCount ?? prospect.reviewCount,
     websiteExists: input.websiteExists ?? prospect.websiteExists,
+    website: input.website ?? prospect.website,
     websiteQuality: input.websiteQuality ?? prospect.websiteQuality,
     mobileUx: input.mobileUx ?? prospect.mobileUx,
     ctaQuality: input.ctaQuality ?? prospect.ctaQuality,
@@ -250,6 +260,12 @@ export async function updateProspectAction(
     urgency: input.urgency ?? prospect.urgency,
     recurringPotential: input.recurringPotential ?? prospect.recurringPotential,
     buyingSignals: input.buyingSignals ?? prospect.buyingSignals,
+    phone: input.phone ?? prospect.phone,
+    email: input.email ?? prospect.email,
+    linkedInUrl: input.linkedInUrl ?? prospect.linkedInUrl,
+    hasDecisionMaker: input.contactIsDecisionMaker,
+    contactFirstName: input.contactFirstName,
+    contactTitle: input.contactTitle,
   });
 
   const updateData: Record<string, unknown> = {

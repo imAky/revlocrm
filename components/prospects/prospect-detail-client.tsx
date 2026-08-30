@@ -467,7 +467,15 @@ export function ProspectDetailClient({
                   score={prospect.leadScore}
                   grade={prospect.leadGrade}
                   prospectName={prospect.name}
-                  scoringInput={editForm as any}
+                  scoringInput={{
+                    ...editForm,
+                    hasDecisionMaker: contactsList.some((c) => c.isDecisionMaker) || contactsList.length > 0,
+                    contacts: contactsList,
+                    contactsCount: contactsList.length,
+                    phone: editForm.phone || prospect.phone,
+                    email: editForm.email || prospect.email,
+                    linkedInUrl: editForm.linkedInUrl || prospect.linkedInUrl,
+                  }}
                   size="md"
                   showLabel
                   side="bottom"
