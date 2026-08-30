@@ -37,6 +37,7 @@ export function LeadScoreBreakdownPopover({
   const [coords, setCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverCardRef = useRef<HTMLDivElement>(null);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -81,20 +82,23 @@ export function LeadScoreBreakdownPopover({
     setCoords({ top, left });
   }, [align, side]);
 
-  const handleMouseEnter = () => {
+  const handleMouseEnter = useCallback(() => {
     if (closeTimeoutRef.current) {
       clearTimeout(closeTimeoutRef.current);
       closeTimeoutRef.current = null;
     }
     updatePosition();
     setIsOpen(true);
-  };
+  }, [updatePosition]);
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = useCallback(() => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+    }
     closeTimeoutRef.current = setTimeout(() => {
       setIsOpen(false);
-    }, 150);
-  };
+    }, 250);
+  }, []);
 
   const handleTriggerClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -103,6 +107,26 @@ export function LeadScoreBreakdownPopover({
     }
     setIsOpen((prev) => !prev);
   };
+
+  // Close on outside click (clean mousedown listener without full-screen desktop backdrop)
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      if (
+        triggerRef.current?.contains(e.target as Node) ||
+        popoverCardRef.current?.contains(e.target as Node)
+      ) {
+        return;
+      }
+      setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("touchstart", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
+    };
+  }, [isOpen]);
 
   // Keep position accurate during scroll or resize
   useEffect(() => {
@@ -261,9 +285,9 @@ export function LeadScoreBreakdownPopover({
       {/* Portal Container mounted in document.body with Topmost z-index */}
       {isOpen && mounted && typeof document !== "undefined" && createPortal(
         <>
-          {/* Backdrop for easy outside-tap dismissal on mobile/desktop */}
+          {/* Mobile-only backdrop for easy outside-tap dismissal */}
           <div
-            className="fixed inset-0 z-[99998] bg-black/20 sm:bg-transparent"
+            className="sm:hidden fixed inset-0 z-[99998] bg-black/30 backdrop-blur-2xs"
             onClick={(e) => {
               e.stopPropagation();
               setIsOpen(false);
@@ -272,13 +296,14 @@ export function LeadScoreBreakdownPopover({
 
           {/* Floating Glassmorphic Breakdown Card Popover */}
           <div
+            ref={popoverCardRef}
             style={{
               position: "fixed",
               top: `${coords.top}px`,
               left: `${coords.left}px`,
               width: "min(350px, calc(100vw - 24px))",
             }}
-            className="z-[99999] p-4 rounded-3xl bg-white/98 dark:bg-[#121218]/98 backdrop-blur-2xl border border-slate-200/90 dark:border-zinc-800 shadow-2xl text-foreground dark:text-zinc-100 animate-in fade-in zoom-in-95 duration-150 text-xs space-y-3.5 pointer-events-auto"
+            className="z-[99999] p-4 rounded-3xl bg-white/98 dark:bg-[#121218]/98 backdrop-blur-2xl border border-slate-200/90 dark:border-zinc-800 shadow-2xl text-foreground dark:text-zinc-100 animate-in fade-in zoom-in-95 duration-150 text-xs space-y-3.5 pointer-events-auto before:content-[''] before:absolute before:-top-3 before:inset-x-0 before:h-3 after:content-[''] after:absolute after:-bottom-3 after:inset-x-0 after:h-3"
             onClick={(e) => e.stopPropagation()}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
