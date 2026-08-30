@@ -48,6 +48,13 @@ async function main() {
     CREATE INDEX IF NOT EXISTS auth_otps_created_idx ON auth_otps(created_at);
   `;
 
+  // 5. Ensure instagram_url column exists in contacts
+  await sql`
+    ALTER TABLE contacts ADD COLUMN IF NOT EXISTS instagram_url text;
+  `.catch((err) => {
+    console.log("Notice on contacts instagram_url column:", err.message);
+  });
+
   console.log("✅ Auth tables & schema updates successfully applied to PostgreSQL!");
 }
 

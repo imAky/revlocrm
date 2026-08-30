@@ -16,6 +16,7 @@ export interface ContactInput {
   phone?: string;
   linkedInUrl?: string;
   facebookUrl?: string;
+  instagramUrl?: string;
   preferredChannel?: string;
   isDecisionMaker?: boolean;
   notes?: string;
@@ -44,6 +45,7 @@ export async function createContactAction(input: ContactInput) {
     phone: input.phone,
     linkedInUrl: input.linkedInUrl,
     facebookUrl: input.facebookUrl,
+    instagramUrl: input.instagramUrl,
     preferredChannel: input.preferredChannel || "EMAIL",
     isDecisionMaker: !!input.isDecisionMaker,
     notes: input.notes,
