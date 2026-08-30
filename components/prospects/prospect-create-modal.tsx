@@ -183,7 +183,7 @@ export function ProspectCreateModal({
 
     // 2. Google / Digital Presence Audit
     googleRating: "4.8",
-    reviewCount: 45,
+    reviewCount: "45",
     googleProfileUrl: "",
     websiteExists: true,
     websiteQuality: "FAIR",
@@ -195,7 +195,7 @@ export function ProspectCreateModal({
     trustSignalNotes: "",
     seoVisibility: "WEAK",
     seoNotes: "",
-    speedScore: 65,
+    speedScore: "65",
     facebookUrl: "",
     instagramUrl: "",
     linkedInUrl: "",
@@ -897,8 +897,9 @@ export function ProspectCreateModal({
                   <label className="block mb-1 font-semibold text-foreground">Estimated Deal Size ($)</label>
                   <Input
                     type="number"
-                    placeholder="15000"
-                    value={formData.dealValue}
+                    min="0"
+                    placeholder="e.g. 15000"
+                    value={formData.dealValue ?? ""}
                     onChange={(e) => setFormData({ ...formData, dealValue: e.target.value })}
                     className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                   />
@@ -1239,9 +1240,10 @@ export function ProspectCreateModal({
                     <label className="block mb-1.5 font-semibold text-foreground">Review Count</label>
                     <Input
                       type="number"
-                      placeholder="45"
-                      value={formData.reviewCount}
-                      onChange={(e) => setFormData({ ...formData, reviewCount: Number(e.target.value) })}
+                      min="0"
+                      placeholder="e.g. 45"
+                      value={formData.reviewCount ?? ""}
+                      onChange={(e) => setFormData({ ...formData, reviewCount: e.target.value })}
                       className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
@@ -1314,9 +1316,11 @@ export function ProspectCreateModal({
                     <label className="block mb-1.5 font-semibold text-foreground">Speed Score (0-100)</label>
                     <Input
                       type="number"
-                      placeholder="65"
-                      value={formData.speedScore}
-                      onChange={(e) => setFormData({ ...formData, speedScore: Number(e.target.value) })}
+                      min="0"
+                      max="100"
+                      placeholder="e.g. 65"
+                      value={formData.speedScore ?? ""}
+                      onChange={(e) => setFormData({ ...formData, speedScore: e.target.value })}
                       className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
@@ -1343,8 +1347,9 @@ export function ProspectCreateModal({
                     <label className="block mb-1.5 font-semibold text-foreground">Estimated Deal Size ($)</label>
                     <Input
                       type="number"
-                      placeholder="15000"
-                      value={formData.dealValue}
+                      min="0"
+                      placeholder="e.g. 15000"
+                      value={formData.dealValue ?? ""}
                       onChange={(e) => setFormData({ ...formData, dealValue: e.target.value })}
                       className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />

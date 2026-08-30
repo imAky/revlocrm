@@ -298,7 +298,7 @@ export function ProspectDetailClient({
     email: prospect.email || "",
     businessStatus: prospect.businessStatus || "OPERATIONAL",
     googleRating: prospect.googleRating ? String(prospect.googleRating) : "4.8",
-    reviewCount: prospect.reviewCount ?? 45,
+    reviewCount: prospect.reviewCount !== null && prospect.reviewCount !== undefined ? String(prospect.reviewCount) : "45",
     googleProfileUrl: prospect.googleProfileUrl || "",
     websiteExists: prospect.websiteExists ?? true,
     websiteQuality: prospect.websiteQuality || "FAIR",
@@ -307,7 +307,7 @@ export function ProspectDetailClient({
     quoteBookingFlow: prospect.quoteBookingFlow || "MISSING",
     trustSignals: prospect.trustSignals || "AVERAGE",
     seoVisibility: prospect.seoVisibility || "WEAK",
-    speedScore: prospect.speedScore ?? 65,
+    speedScore: prospect.speedScore !== null && prospect.speedScore !== undefined ? String(prospect.speedScore) : "65",
     dealValue: prospect.dealValue ? String(prospect.dealValue) : "15000",
     stageId: prospect.stageId || stages[0]?.id || "",
     assignedToId: prospect.assignedToId || workspaceUsers[0]?.id || "",
@@ -1444,8 +1444,9 @@ export function ProspectDetailClient({
                     <label className="block mb-1.5 font-semibold text-foreground">Review Count</label>
                     <Input
                       type="number"
-                      value={editForm.reviewCount}
-                      onChange={(e) => setEditForm({ ...editForm, reviewCount: Number(e.target.value) })}
+                      min="0"
+                      value={editForm.reviewCount ?? ""}
+                      onChange={(e) => setEditForm({ ...editForm, reviewCount: e.target.value })}
                       className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
@@ -1546,8 +1547,10 @@ export function ProspectDetailClient({
                     <label className="block mb-1.5 font-semibold text-foreground">PageSpeed Score (0-100)</label>
                     <Input
                       type="number"
-                      value={editForm.speedScore}
-                      onChange={(e) => setEditForm({ ...editForm, speedScore: Number(e.target.value) })}
+                      min="0"
+                      max="100"
+                      value={editForm.speedScore ?? ""}
+                      onChange={(e) => setEditForm({ ...editForm, speedScore: e.target.value })}
                       className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                     />
                   </div>
