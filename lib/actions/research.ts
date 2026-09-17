@@ -20,6 +20,7 @@ export interface ResearchKeywordItem {
   country?: string | null;
   status: string; // 'PENDING' | 'SEARCHED' | 'IN_PROGRESS' | 'FAVORITE' | 'ARCHIVED'
   searchEngine: string; // 'GOOGLE_MAPS' | 'GOOGLE_SEARCH' | 'YELP' | 'LINKEDIN'
+  searchedBy?: string | null; // 'USER' | 'AI_AGENT'
   prospectsFoundCount: number;
   notes?: string | null;
   lastSearchedAt?: string | Date | null;

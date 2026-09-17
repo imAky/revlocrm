@@ -94,6 +94,8 @@ export interface ProspectItem {
   assignedToName?: string;
   mainOpportunity: string | null;
   buyingSignals?: string | null;
+  hasNoWebsiteOpportunity?: boolean | null;
+  leadSource?: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
 }
@@ -735,12 +737,24 @@ export function ProspectsTableClient({
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-1 min-w-0">
-                    <Link
-                      href={`/prospects/${p.id}`}
-                      className="font-bold text-sm text-foreground group-hover:text-primary transition-colors block truncate"
-                    >
-                      {p.name}
-                    </Link>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Link
+                        href={`/prospects/${p.id}`}
+                        className="font-bold text-sm text-foreground group-hover:text-primary transition-colors block truncate"
+                      >
+                        {p.name}
+                      </Link>
+                      {p.hasNoWebsiteOpportunity && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-500 text-white uppercase tracking-wider">
+                          🔥 No Website
+                        </span>
+                      )}
+                      {p.leadSource?.includes("Revlo AI Agent") && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30">
+                          🤖 AI Scout
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <span className="truncate">{p.niche || "—"}</span>
                       {p.businessStatus && (
@@ -913,14 +927,26 @@ export function ProspectsTableClient({
                       {/* Company Name & Website */}
                       <TableCell>
                         <Link href={`/prospects/${p.id}`} className="block group">
-                          <div className="font-semibold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
+                          <div className="font-semibold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5 flex-wrap">
                             <span>{p.name}</span>
+                            {p.hasNoWebsiteOpportunity && (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-500 text-white uppercase tracking-wider">
+                                🔥 No Website
+                              </span>
+                            )}
+                            {p.leadSource?.includes("Revlo AI Agent") && (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30">
+                                🤖 AI
+                              </span>
+                            )}
                             <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
                           </div>
-                          {p.website && (
+                          {p.website ? (
                             <span className="text-[11px] text-muted-foreground hover:underline flex items-center gap-1">
                               {p.website.replace(/^https?:\/\//, "")}
                             </span>
+                          ) : (
+                            <span className="text-[10px] text-rose-500 font-bold">No Website (Pitch Target)</span>
                           )}
                         </Link>
                       </TableCell>

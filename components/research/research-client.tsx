@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import confetti from "canvas-confetti";
 import {
   Compass,
@@ -13,6 +14,7 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
+  Bot,
   Copy,
   Check,
   Star,
@@ -52,6 +54,7 @@ import {
 } from "@/components/ui/dialog";
 import { KeywordGeneratorModal } from "./keyword-generator-modal";
 import { BulkImportModal } from "./bulk-import-modal";
+import { AiKeywordGeneratorModal } from "./ai-keyword-generator-modal";
 import {
   ResearchKeywordItem,
   createKeywordAction,
@@ -118,6 +121,7 @@ export function ResearchClient({
   // Modal States
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [isAiGenOpen, setIsAiGenOpen] = useState(false);
   const [isSingleAddOpen, setIsSingleAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isQuickLeadOpen, setIsQuickLeadOpen] = useState(false);
@@ -704,12 +708,22 @@ export function ResearchClient({
 
             <Button
               size="sm"
-              variant="gradient"
+              variant="outline"
               onClick={() => setIsGeneratorOpen(true)}
+              className="gap-1.5 text-xs font-bold rounded-xl border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer shadow-2xs"
+            >
+              <Layers className="h-4 w-4 text-indigo-500" />
+              <span>Matrix Generator</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="gradient"
+              onClick={() => setIsAiGenOpen(true)}
               className="gap-1.5 text-xs font-bold rounded-xl shadow-md cursor-pointer"
             >
-              <Sparkles className="h-4 w-4" />
-              <span>Matrix Generator</span>
+              <Sparkles className="h-4 w-4 text-amber-300" />
+              <span>Tier-1 AI Scout Generator</span>
             </Button>
           </div>
         </div>
@@ -1315,30 +1329,39 @@ export function ResearchClient({
 
                       {/* Status Toggle Badge */}
                       <td className="py-3 px-3">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleStatus(item)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
-                            isSearched
-                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-                              : isFavorite
-                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/25"
-                              : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
-                          }`}
-                          title="Click to toggle status"
-                        >
-                          {isSearched ? (
-                            <>
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              <span>Searched / Done</span>
-                            </>
-                          ) : (
-                            <>
-                              <Clock className="h-3.5 w-3.5" />
-                              <span>In Queue</span>
-                            </>
+                        <div className="flex flex-col gap-1 items-start">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStatus(item)}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
+                              isSearched
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                                : isFavorite
+                                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/25"
+                                : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
+                            }`}
+                            title="Click to toggle status"
+                          >
+                            {isSearched ? (
+                              <>
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span>Searched / Done</span>
+                              </>
+                            ) : (
+                              <>
+                                <Clock className="h-3.5 w-3.5" />
+                                <span>In Queue</span>
+                              </>
+                            )}
+                          </button>
+
+                          {item.searchedBy === "AI_AGENT" && (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30">
+                              <Bot className="h-2.5 w-2.5" />
+                              Revlo AI Scout
+                            </span>
                           )}
-                        </button>
+                        </div>
                       </td>
 
                       {/* Leads Discovered Counter */}
@@ -1367,6 +1390,20 @@ export function ResearchClient({
                       {/* 1-Click Launchers */}
                       <td className="py-3 px-3 text-center">
                         <div className="flex items-center justify-center gap-1.5">
+                          {/* AI Scout Button */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            asChild
+                            className="h-7 px-2 text-[11px] font-semibold gap-1 rounded-lg border-indigo-500/30 text-indigo-600 dark:text-indigo-400 bg-indigo-500/5 hover:bg-indigo-500/15 cursor-pointer shadow-2xs"
+                            title="Open AI Scout on this target in Automation Hub"
+                          >
+                            <Link href="/automation">
+                              <Bot className="h-3 w-3" />
+                              <span>Scout</span>
+                            </Link>
+                          </Button>
+
                           {/* Google Maps Button */}
                           <Button
                             size="sm"
@@ -1897,6 +1934,16 @@ export function ResearchClient({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* 10. AI Tier-1 Keyword Generator Modal */}
+      <AiKeywordGeneratorModal
+        open={isAiGenOpen}
+        onOpenChange={setIsAiGenOpen}
+        onKeywordsAdded={() => {
+          confetti({ particleCount: 50, spread: 70 });
+          window.location.reload();
+        }}
+      />
     </div>
   );
 }

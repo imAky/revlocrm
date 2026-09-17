@@ -23,6 +23,7 @@ export default async function ResearchPage() {
         country: researchKeywords.country,
         status: researchKeywords.status,
         searchEngine: researchKeywords.searchEngine,
+        searchedBy: researchKeywords.searchedBy,
         prospectsFoundCount: researchKeywords.prospectsFoundCount,
         notes: researchKeywords.notes,
         lastSearchedAt: researchKeywords.lastSearchedAt,

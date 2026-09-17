@@ -259,6 +259,7 @@ export const prospects = pgTable(
     facebookUrl: text("facebook_url"),
     instagramUrl: text("instagram_url"),
     linkedInUrl: text("linkedin_url"),
+    hasNoWebsiteOpportunity: boolean("has_no_website_opportunity").default(false).notNull(),
 
     // Qualification & Scoring
     leadScore: integer("lead_score").default(0).notNull(),
@@ -337,6 +338,7 @@ export const contacts = pgTable(
     instagramUrl: text("instagram_url"),
     preferredChannel: text("preferred_channel"), // 'EMAIL' | 'PHONE' | 'LINKEDIN' | 'WHATSAPP'
     isDecisionMaker: boolean("is_decision_maker").default(false).notNull(),
+    verificationStatus: text("verification_status").default("VERIFIED").notNull(), // 'VERIFIED' | 'NEEDS_REVIEW'
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
@@ -659,6 +661,7 @@ export const researchKeywords = pgTable(
     country: text("country").default("US"),
     status: text("status").default("PENDING").notNull(), // 'PENDING' | 'SEARCHED' | 'IN_PROGRESS' | 'FAVORITE' | 'ARCHIVED'
     searchEngine: text("search_engine").default("GOOGLE_MAPS").notNull(), // 'GOOGLE_MAPS' | 'GOOGLE_SEARCH' | 'YELP' | 'LINKEDIN'
+    searchedBy: text("searched_by").default("USER"), // 'USER' | 'AI_AGENT'
     prospectsFoundCount: integer("prospects_found_count").default(0).notNull(),
     notes: text("notes"),
     lastSearchedAt: timestamp("last_searched_at", { withTimezone: true }),
