@@ -8,31 +8,17 @@ import { AutomationClient } from "@/components/automation/automation-client";
 export default async function AutomationPage() {
   const ctx = await requireAuth();
 
-  // 1. Fetch pending research keywords (up to 100 newest pending first)
-  const pendingKeywords = await db
+  // 1. Fetch research target keywords matching research page exactly (ordered by newest first)
+  const allResearchKeywords = await db
     .select()
     .from(researchKeywords)
-    .where(
-      and(
-        eq(researchKeywords.workspaceId, ctx.workspaceId),
-        eq(researchKeywords.status, "PENDING")
-      )
-    )
+    .where(eq(researchKeywords.workspaceId, ctx.workspaceId))
     .orderBy(desc(researchKeywords.createdAt))
-    .limit(100);
+    .limit(250);
 
-  // 2. Fetch completed/searched keywords with attribution
-  const searchedKeywords = await db
-    .select()
-    .from(researchKeywords)
-    .where(
-      and(
-        eq(researchKeywords.workspaceId, ctx.workspaceId),
-        eq(researchKeywords.status, "SEARCHED")
-      )
-    )
-    .orderBy(desc(researchKeywords.lastSearchedAt))
-    .limit(10);
+  // 2. Derive pending and completed sets
+  const pendingKeywords = allResearchKeywords.filter((k) => k.status === "PENDING");
+  const searchedKeywords = allResearchKeywords.filter((k) => k.status === "SEARCHED");
 
   // 3. Fetch recent prospects discovered by the AI Agent
   const aiDiscoveredProspects = await db
@@ -74,6 +60,7 @@ export default async function AutomationPage() {
     >
       <AutomationClient
         workspaceId={ctx.workspaceId}
+        initialResearchKeywords={allResearchKeywords}
         initialPendingKeywords={pendingKeywords}
         initialSearchedKeywords={searchedKeywords}
         initialAiProspects={aiDiscoveredProspects}
