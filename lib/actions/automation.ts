@@ -67,10 +67,12 @@ export async function generateTier1KeywordsAction({
   country = "US",
   niche,
   count = 10,
+  modelId = "gemini-3.5-flash-lite",
 }: {
   country?: "US" | "GB" | "CA" | "AU";
   niche?: string;
   count?: number;
+  modelId?: string;
 }) {
   const ctx = await requireAuth();
 
@@ -78,6 +80,7 @@ export async function generateTier1KeywordsAction({
     country,
     niche,
     count,
+    modelId,
     workspaceId: ctx.workspaceId,
   });
 
@@ -136,11 +139,13 @@ export async function runGoogleMapsScoutAction({
   query,
   country = "US",
   maxResults = 10,
+  modelId = "gemini-3.5-flash-lite",
 }: {
   keywordId?: string;
   query?: string;
   country?: string;
   maxResults?: number;
+  modelId?: string;
 }) {
   const ctx = await requireAuth();
 
@@ -187,6 +192,7 @@ export async function runGoogleMapsScoutAction({
         city: p.city,
         state: p.state,
         website: p.website,
+        modelId,
       });
 
       enrichedProspects.push({

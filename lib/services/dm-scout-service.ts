@@ -24,19 +24,53 @@ export async function scoutDecisionMaker({
   city,
   state,
   website,
+  modelId = "gemini-3.5-flash-lite",
 }: {
   companyName: string;
   city?: string;
   state?: string;
   website?: string | null;
+  modelId?: string;
 }): Promise<DecisionMakerResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
+  const groqApiKey = process.env.GROQ_API_KEY;
 
-  if (apiKey) {
+  const isGroq = modelId.includes("groq") || modelId.includes("llama") || modelId.includes("deepseek");
+
+  if (isGroq && groqApiKey) {
     try {
-      return await searchDecisionMakerWithGemini({ companyName, city, state, website, apiKey });
+      return await searchDecisionMakerWithGroq({ companyName, city, state, website, modelId, apiKey: groqApiKey });
     } catch (err) {
-      console.warn("Gemini decision-maker search failed, falling back to heuristic scout:", err);
+      console.warn("Groq decision-maker search failed, falling back to Gemini/heuristic:", err);
+    }
+  }
+
+  if (geminiApiKey) {
+    // Multi-tier cascade for Google Gemini models (Gemini 3.5 Lite -> 3.1 Lite -> 3.8 -> Flash-Lite Latest -> 3.7)
+    const cascadeOrder = Array.from(
+      new Set([
+        modelId,
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite",
+        "gemini-3.8-flash",
+        "gemini-flash-lite-latest",
+        "gemini-3.7-flash",
+      ])
+    );
+
+    for (const model of cascadeOrder) {
+      try {
+        return await searchDecisionMakerWithGemini({
+          companyName,
+          city,
+          state,
+          website,
+          modelId: model,
+          apiKey: geminiApiKey,
+        });
+      } catch (err) {
+        console.warn(`Gemini model ${model} scout failed, trying next cascade:`, err);
+      }
     }
   }
 
@@ -51,12 +85,14 @@ async function searchDecisionMakerWithGemini({
   city,
   state,
   website,
+  modelId = "gemini-3.5-flash-lite",
   apiKey,
 }: {
   companyName: string;
   city?: string;
   state?: string;
   website?: string | null;
+  modelId?: string;
   apiKey: string;
 }): Promise<DecisionMakerResult> {
   const prompt = `Find the key business owner, founder, CEO, or managing partner for this company:
@@ -82,29 +118,53 @@ Return valid JSON with format:
 }
 Only output raw JSON without markdown formatting.`;
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+  const normalizedModel = modelId.startsWith("gemini-") ? modelId : "gemini-3.5-flash-lite";
+
+  // First try with Google Search Grounding tool (available on Gemini 2.5 / 2 / 3.5 models)
+  let response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${normalizedModel}:generateContent?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
+        tools: [{ googleSearch: {} }],
         generationConfig: {
-          responseMimeType: "application/json",
           temperature: 0.2,
         },
       }),
     }
   );
 
+  // If tools + search grounding returned an error on this endpoint, fallback to standard generation
+  if (!response.ok) {
+    response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${normalizedModel}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            temperature: 0.2,
+          },
+        }),
+      }
+    );
+  }
+
   if (!response.ok) throw new Error(`Gemini HTTP ${response.status}`);
   const data = await response.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error("No output from Gemini");
 
-  const parsed = JSON.parse(text);
-  if (!parsed.fullName) {
-    return { found: false, verificationStatus: "NEEDS_REVIEW" };
+  // Extract JSON object safely even if accompanied by grounding citations
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);
+
+  if (!parsed || !parsed.fullName) {
+    throw new Error("No decision maker profile in model response");
   }
 
   return {
@@ -117,7 +177,87 @@ Only output raw JSON without markdown formatting.`;
     email: parsed.email || undefined,
     phone: parsed.phone || undefined,
     verificationStatus: parsed.verificationStatus === "VERIFIED" ? "VERIFIED" : "NEEDS_REVIEW",
-    sourceNote: parsed.sourceNote || "Found via web research",
+    sourceNote: parsed.sourceNote || `Found via Gemini Search Grounding (${normalizedModel})`,
+  };
+}
+
+/**
+ * Groq LPU Search for Owner / Founder Discovery
+ */
+async function searchDecisionMakerWithGroq({
+  companyName,
+  city,
+  state,
+  website,
+  modelId,
+  apiKey,
+}: {
+  companyName: string;
+  city?: string;
+  state?: string;
+  website?: string | null;
+  modelId: string;
+  apiKey: string;
+}): Promise<DecisionMakerResult> {
+  const modelCode = modelId.includes("compound")
+    ? "groq/compound-mini"
+    : "qwen/qwen3.8-27b";
+
+  const prompt = `Identify the key business owner, founder, or managing director for this company:
+Company: "${companyName}" in ${city || ""}, ${state || ""}
+${website ? `Website: "${website}"` : "No website on file"}
+
+RULES:
+1. Do NOT make up personal emails.
+2. If confident, set verificationStatus to "VERIFIED", else "NEEDS_REVIEW".
+
+Return valid raw JSON:
+{
+  "found": true,
+  "fullName": "Jane Doe",
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "jobTitle": "Founder & Managing Director",
+  "linkedInUrl": "https://linkedin.com/in/...",
+  "verificationStatus": "VERIFIED",
+  "sourceNote": "Public web verification"
+}`;
+
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: modelCode,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.2,
+      max_tokens: 500,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!response.ok) throw new Error(`Groq HTTP ${response.status}: ${await response.text()}`);
+  const data = await response.json();
+  const raw = data.choices?.[0]?.message?.content;
+  if (!raw) throw new Error("No output from Groq");
+
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(raw);
+  if (!parsed || !parsed.fullName) throw new Error("No decision maker profile in Groq response");
+
+  return {
+    found: true,
+    fullName: parsed.fullName,
+    firstName: parsed.firstName || parsed.fullName.split(" ")[0] || "Owner",
+    lastName: parsed.lastName || parsed.fullName.split(" ").slice(1).join(" ") || "",
+    jobTitle: parsed.jobTitle || "Business Owner",
+    linkedInUrl: parsed.linkedInUrl || undefined,
+    email: parsed.email || undefined,
+    phone: parsed.phone || undefined,
+    verificationStatus: parsed.verificationStatus === "VERIFIED" ? "VERIFIED" : "NEEDS_REVIEW",
+    sourceNote: parsed.sourceNote || "Identified via Groq analysis",
   };
 }
 

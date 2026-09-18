@@ -56,13 +56,16 @@ export async function searchGoogleMapsProspects({
   maxResults?: number;
 }): Promise<DiscoveryResult> {
   const trimmed = keyword.trim();
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
 
   let prospects: DiscoveredProspect[] = [];
 
   if (apiKey) {
     try {
       prospects = await fetchGooglePlacesApi(trimmed, apiKey, maxResults);
+      if (prospects.length === 0) {
+        prospects = await fetchLiveWebDiscovery(trimmed, country, maxResults);
+      }
     } catch (err) {
       console.warn("Google Places API call failed, using live web discovery fallback:", err);
       prospects = await fetchLiveWebDiscovery(trimmed, country, maxResults);
@@ -97,22 +100,86 @@ export async function searchGoogleMapsProspects({
 }
 
 /**
- * Official Google Places API implementation
+ * Official Google Places API implementation (Supports Places API New & Legacy)
  */
 async function fetchGooglePlacesApi(
   query: string,
   apiKey: string,
   maxResults: number
 ): Promise<DiscoveredProspect[]> {
-  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
+  // 1. Try Google Places API (New) endpoint
+  try {
+    const newApiUrl = "https://places.googleapis.com/v1/places:searchText";
+    const res = await fetch(newApiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask":
+          "places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.websiteUri,places.nationalPhoneNumber,places.id,places.businessStatus,places.googleMapsUri",
+      },
+      body: JSON.stringify({
+        textQuery: query,
+        pageSize: maxResults,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const places = data.places || [];
+      if (places.length > 0) {
+        return places.map((r: any) => {
+          const name = r.displayName?.text || "Local Business";
+          const address = r.formattedAddress || "";
+          const addressParts = address.split(",").map((s: string) => s.trim());
+          const city = addressParts[addressParts.length - 3] || "Unknown City";
+          const stateZip = addressParts[addressParts.length - 2] || "";
+          const [state, postalCode] = stateZip.split(" ").filter(Boolean);
+          const hasWeb = !!r.websiteUri;
+
+          return {
+            name,
+            category: "Local Business",
+            niche: extractNicheFromQuery(query),
+            address,
+            city,
+            state: state || "",
+            country: "US",
+            postalCode: postalCode || "",
+            phone: r.nationalPhoneNumber || "",
+            googleRating: r.rating ? String(r.rating) : "4.8",
+            reviewCount: r.userRatingCount || 15,
+            website: hasWeb ? r.websiteUri : null,
+            websiteExists: hasWeb,
+            hasNoWebsiteOpportunity: !hasWeb && (r.rating || 0) >= 4.0,
+            googleMapsUrl: r.googleMapsUri || (r.id ? `https://www.google.com/maps/place/?q=place_id:${r.id}` : ""),
+            placeId: r.id,
+            businessStatus: r.businessStatus || "OPERATIONAL",
+          };
+        });
+      }
+    }
+  } catch (err) {
+    // Continue to legacy endpoint
+  }
+
+  // 2. Try Legacy Google Places Text Search endpoint
+  const legacyUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
     query
   )}&key=${apiKey}`;
 
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Google Places HTTP ${res.status}`);
+  const legacyRes = await fetch(legacyUrl);
+  if (!legacyRes.ok) throw new Error(`Google Places HTTP ${legacyRes.status}`);
 
-  const data = await res.json();
+  const data = await legacyRes.json();
+  if (data.status === "REQUEST_DENIED" || data.error_message) {
+    throw new Error(data.error_message || "Places request denied");
+  }
+
   const results = data.results || [];
+  if (results.length === 0) {
+    return [];
+  }
 
   return results.slice(0, maxResults).map((r: any) => {
     const address = r.formatted_address || "";

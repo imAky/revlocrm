@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, Globe, MapPin, Check, Plus, Loader2, CheckCircle2 } from "lucide-react";
+import { Sparkles, Globe, MapPin, Check, Plus, Loader2, CheckCircle2, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,7 +12,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { TIER1_COUNTRIES, HIGH_TICKET_NICHES } from "@/lib/constants/automation";
+import { TIER1_COUNTRIES, HIGH_TICKET_NICHES, AVAILABLE_AI_MODELS } from "@/lib/constants/automation";
 import { generateTier1KeywordsAction } from "@/lib/actions/automation";
 import confetti from "canvas-confetti";
 
@@ -29,11 +29,13 @@ export function AiKeywordGeneratorModal({
 }: AiKeywordGeneratorModalProps) {
   const [selectedCountry, setSelectedCountry] = useState<"US" | "GB" | "CA" | "AU">("US");
   const [selectedNiche, setSelectedNiche] = useState<string>("ALL");
+  const [selectedModel, setSelectedModel] = useState<string>("gemini-3.5-flash-lite");
   const [count, setCount] = useState<number>(10);
   const [isGenerating, setIsGenerating] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const countryConfig = TIER1_COUNTRIES[selectedCountry];
+  const activeModel = AVAILABLE_AI_MODELS.find((m) => m.id === selectedModel) || AVAILABLE_AI_MODELS[0];
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -43,6 +45,7 @@ export function AiKeywordGeneratorModal({
         country: selectedCountry,
         niche: selectedNiche === "ALL" ? undefined : selectedNiche,
         count,
+        modelId: selectedModel,
       });
 
       if (res.success) {
@@ -135,7 +138,34 @@ export function AiKeywordGeneratorModal({
             </select>
           </div>
 
-          {/* 3. Batch Size Selector */}
+          {/* 3. AI Model Selector */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="font-semibold text-foreground flex items-center gap-1.5">
+                <Bot className="h-3.5 w-3.5 text-indigo-500" />
+                <span>AI Model Selection</span>
+              </label>
+              <span className="text-[10px] text-muted-foreground font-mono">
+                {activeModel.freeTierLimit}
+              </span>
+            </div>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer font-medium"
+            >
+              {AVAILABLE_AI_MODELS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name} — {m.badge} ({m.freeTierLimit})
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-muted-foreground">
+              {activeModel.description}
+            </p>
+          </div>
+
+          {/* 4. Batch Size Selector */}
           <div className="space-y-1.5">
             <label className="font-semibold text-foreground flex items-center justify-between">
               <span>Number of Search Queries to Generate</span>

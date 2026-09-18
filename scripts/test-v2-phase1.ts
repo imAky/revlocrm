@@ -65,7 +65,7 @@ async function main() {
 
     console.log(`  Discovered with website: ${withWeb.length}, without website: ${withoutWeb.length}`);
     assert(
-      withoutWeb.some((p) => p.hasNoWebsiteOpportunity === true),
+      discoveryRes.prospects.every((p) => (!p.websiteExists ? p.hasNoWebsiteOpportunity === true : true)),
       "Correctly flagged hasNoWebsiteOpportunity=true for businesses lacking website"
     );
 

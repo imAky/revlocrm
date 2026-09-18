@@ -101,3 +101,82 @@ export const HIGH_TICKET_NICHES = [
   { name: "Boutique Corporate & Estate Law", defaultSearch: "Corporate Law Firms" },
   { name: "High-End Architectural & Landscape Design", defaultSearch: "Landscape Architecture & Pools" },
 ];
+
+export interface AiModelOption {
+  id: string;
+  name: string;
+  provider: "google" | "groq";
+  badge: string;
+  description: string;
+  isDefault?: boolean;
+  freeTierLimit: string;
+  modelCode: string;
+}
+
+export const AVAILABLE_AI_MODELS: AiModelOption[] = [
+  {
+    id: "gemini-3.5-flash-lite",
+    name: "Gemini 3.5 Flash-Lite",
+    provider: "google",
+    badge: "Primary Default (500 RPD)",
+    description: "Top recommended: 500 requests/day, 15 RPM, 250K TPM + 500 Map Grounding quota",
+    isDefault: true,
+    freeTierLimit: "500 req/day + 500 Map Grounding",
+    modelCode: "gemini-3.5-flash-lite",
+  },
+  {
+    id: "gemini-3.1-flash-lite",
+    name: "Gemini 3.1 Flash-Lite",
+    provider: "google",
+    badge: "High Volume (500 RPD)",
+    description: "Secondary powerhouse: 500 requests/day, 15 RPM, 250K TPM + 500 Map Grounding",
+    freeTierLimit: "500 req/day + 500 Map Grounding",
+    modelCode: "gemini-3.1-flash-lite",
+  },
+  {
+    id: "gemini-3.8-flash",
+    name: "Gemini 3.8 Flash",
+    provider: "google",
+    badge: "Advanced Reasoning",
+    description: "Highest cognitive reasoning for intricate corporate ownership and executive discovery",
+    freeTierLimit: "20 req/day • 250K TPM",
+    modelCode: "gemini-3.8-flash",
+  },
+  {
+    id: "gemini-3.7-flash",
+    name: "Gemini 3.7 Flash",
+    provider: "google",
+    badge: "Next-Gen 3.7",
+    description: "Next-gen multimodal reasoning model with 250K TPM throughput",
+    freeTierLimit: "20 req/day • 250K TPM",
+    modelCode: "gemini-3.7-flash",
+  },
+  {
+    id: "gemini-flash-lite-latest",
+    name: "Gemini Flash-Lite Latest",
+    provider: "google",
+    badge: "Auto-Updated",
+    description: "Always targets Google's latest production Flash-Lite endpoint",
+    freeTierLimit: "500 req/day",
+    modelCode: "gemini-flash-lite-latest",
+  },
+  {
+    id: "qwen-3.8-27b-groq",
+    name: "Qwen 3.8 27B (via Groq)",
+    provider: "groq",
+    badge: "Ultra-Fast Groq LPU",
+    description: "Blazing fast 400+ tokens/sec on Groq LPU hardware for instant batch generation",
+    freeTierLimit: "Free API on console.groq.com",
+    modelCode: "qwen/qwen3.8-27b",
+  },
+  {
+    id: "compound-mini-groq",
+    name: "Groq Compound Mini",
+    provider: "groq",
+    badge: "Groq LPU Engine",
+    description: "Groq compound reasoning model for structured intelligence",
+    freeTierLimit: "Free API on console.groq.com",
+    modelCode: "groq/compound-mini",
+  },
+];
+

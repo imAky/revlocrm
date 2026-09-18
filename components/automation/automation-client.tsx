@@ -40,6 +40,7 @@ import {
   fetchNextPendingKeywordAction,
 } from "@/lib/actions/automation";
 import { DiscoveredProspect, DiscoveryResult } from "@/lib/services/discovery-service";
+import { AVAILABLE_AI_MODELS } from "@/lib/constants/automation";
 
 interface AutomationClientProps {
   workspaceId: string;
@@ -72,6 +73,7 @@ export function AutomationClient({
   );
   const [customQuery, setCustomQuery] = useState("");
   const [selectedCountry, setSelectedCountry] = useState<"US" | "GB" | "CA" | "AU">("US");
+  const [selectedModel, setSelectedModel] = useState<string>("gemini-3.5-flash-lite");
   const [isRunningScout, setIsRunningScout] = useState(false);
   const [scoutStep, setScoutStep] = useState<number>(0);
   const [latestDiscovery, setLatestDiscovery] = useState<DiscoveryResult | null>(null);
@@ -96,6 +98,7 @@ export function AutomationClient({
         query: selectedKeywordId ? undefined : customQuery.trim(),
         country: selectedCountry,
         maxResults: 10,
+        modelId: selectedModel,
       });
 
       clearTimeout(stepTimer1);
@@ -304,29 +307,52 @@ export function AutomationClient({
             </p>
           </div>
 
-          {/* Country Selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground font-medium">Target Country:</span>
-            <div className="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-xs font-semibold">
-              {[
-                { code: "US", flag: "🇺🇸 US" },
-                { code: "GB", flag: "🇬🇧 UK" },
-                { code: "CA", flag: "🇨🇦 CA" },
-                { code: "AU", flag: "🇦🇺 AU" },
-              ].map((c) => (
-                <button
-                  key={c.code}
-                  type="button"
-                  onClick={() => setSelectedCountry(c.code as any)}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                    selectedCountry === c.code
-                      ? "bg-white dark:bg-zinc-800 text-foreground shadow-2xs font-bold"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {c.flag}
-                </button>
-              ))}
+          {/* Selectors Group: Model & Country */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* AI Model Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                <Bot className="h-3.5 w-3.5 text-indigo-500" />
+                <span>Model:</span>
+              </span>
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                disabled={isRunningScout}
+                className="h-8 px-2.5 rounded-xl bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+              >
+                {AVAILABLE_AI_MODELS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} ({m.badge})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Country Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium">Country:</span>
+              <div className="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-xs font-semibold">
+                {[
+                  { code: "US", flag: "🇺🇸 US" },
+                  { code: "GB", flag: "🇬🇧 UK" },
+                  { code: "CA", flag: "🇨🇦 CA" },
+                  { code: "AU", flag: "🇦🇺 AU" },
+                ].map((c) => (
+                  <button
+                    key={c.code}
+                    type="button"
+                    onClick={() => setSelectedCountry(c.code as any)}
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                      selectedCountry === c.code
+                        ? "bg-white dark:bg-zinc-800 text-foreground shadow-2xs font-bold"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {c.flag}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
