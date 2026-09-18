@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { requireAuth } from "@/lib/permissions/server-guards";
 import { db } from "@/lib/db";
 import { researchKeywords, prospects } from "@/lib/db/schema";
@@ -7,7 +8,7 @@ import { AutomationClient } from "@/components/automation/automation-client";
 export default async function AutomationPage() {
   const ctx = await requireAuth();
 
-  // 1. Fetch pending research keywords
+  // 1. Fetch pending research keywords (up to 100 newest pending first)
   const pendingKeywords = await db
     .select()
     .from(researchKeywords)
@@ -17,8 +18,8 @@ export default async function AutomationPage() {
         eq(researchKeywords.status, "PENDING")
       )
     )
-    .orderBy(researchKeywords.createdAt)
-    .limit(20);
+    .orderBy(desc(researchKeywords.createdAt))
+    .limit(100);
 
   // 2. Fetch completed/searched keywords with attribution
   const searchedKeywords = await db
@@ -64,13 +65,21 @@ export default async function AutomationPage() {
   ]);
 
   return (
-    <AutomationClient
-      workspaceId={ctx.workspaceId}
-      initialPendingKeywords={pendingKeywords}
-      initialSearchedKeywords={searchedKeywords}
-      initialAiProspects={aiDiscoveredProspects}
-      totalKeywordsCount={Number(totalKeywordsRes[0]?.count || 0)}
-      noWebsiteCount={Number(noWebsiteCountRes[0]?.count || 0)}
-    />
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-xs text-muted-foreground">
+          Loading AI Agents Hub...
+        </div>
+      }
+    >
+      <AutomationClient
+        workspaceId={ctx.workspaceId}
+        initialPendingKeywords={pendingKeywords}
+        initialSearchedKeywords={searchedKeywords}
+        initialAiProspects={aiDiscoveredProspects}
+        totalKeywordsCount={Number(totalKeywordsRes[0]?.count || 0)}
+        noWebsiteCount={Number(noWebsiteCountRes[0]?.count || 0)}
+      />
+    </Suspense>
   );
 }

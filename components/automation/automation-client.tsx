@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import confetti from "canvas-confetti";
 import {
   Sparkles,
@@ -45,11 +46,11 @@ import { AVAILABLE_AI_MODELS } from "@/lib/constants/automation";
 
 interface AutomationClientProps {
   workspaceId: string;
-  initialPendingKeywords: any[];
-  initialSearchedKeywords: any[];
-  initialAiProspects: any[];
-  totalKeywordsCount: number;
-  noWebsiteCount: number;
+  initialPendingKeywords?: any[];
+  initialSearchedKeywords?: any[];
+  initialAiProspects?: any[];
+  totalKeywordsCount?: number;
+  noWebsiteCount?: number;
 }
 
 export function AutomationClient({
@@ -60,6 +61,9 @@ export function AutomationClient({
   totalKeywordsCount = 0,
   noWebsiteCount = 0,
 }: AutomationClientProps) {
+  const searchParams = useSearchParams();
+  const hasAutoRanRef = useRef(false);
+
   // Modal states
   const [isAiGenOpen, setIsAiGenOpen] = useState(false);
 
@@ -82,6 +86,59 @@ export function AutomationClient({
   const [isBulkImporting, setIsBulkImporting] = useState(false);
   const [isRunningCycle, setIsRunningCycle] = useState(false);
   const [cycleReport, setCycleReport] = useState<any>(null);
+
+  // Synchronize URL search params (e.g. from Research Page 1-Click AI Scout launcher)
+  useEffect(() => {
+    const qKeyword = searchParams.get("keyword");
+    const qKeywordId = searchParams.get("keywordId");
+    const qCountry = searchParams.get("country") as "US" | "GB" | "CA" | "AU" | null;
+    const qNiche = searchParams.get("niche");
+    const qAutorun = searchParams.get("autorun");
+
+    if (qCountry && ["US", "GB", "CA", "AU"].includes(qCountry)) {
+      setSelectedCountry(qCountry);
+    }
+
+    if (qKeywordId || qKeyword) {
+      let activeTargetId = qKeywordId || "";
+      const existing = pendingKeywords.find(
+        (k) =>
+          (qKeywordId && k.id === qKeywordId) ||
+          (qKeyword && k.keyword.toLowerCase() === qKeyword.toLowerCase())
+      );
+
+      if (existing) {
+        setSelectedKeywordId(existing.id);
+        setCustomQuery("");
+        activeTargetId = existing.id;
+      } else if (qKeyword) {
+        const injectedId = qKeywordId || `kw-${Date.now()}`;
+        const newEntry: any = {
+          id: injectedId,
+          keyword: qKeyword,
+          niche: qNiche || undefined,
+          country: qCountry || "US",
+          status: "PENDING",
+        };
+        setPendingKeywords((prev) => [
+          newEntry,
+          ...prev.filter((k) => k.id !== injectedId && k.keyword !== qKeyword),
+        ]);
+        setSelectedKeywordId(injectedId);
+        setCustomQuery("");
+        activeTargetId = injectedId;
+      }
+
+      // Auto-trigger scout if autorun=true and hasn't auto-run yet
+      if (qAutorun === "true" && !hasAutoRanRef.current) {
+        hasAutoRanRef.current = true;
+        const timer = setTimeout(() => {
+          runScoutSimulation(activeTargetId, qKeyword || undefined);
+        }, 400);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [searchParams]);
 
   // Active target keyword
   const activePendingKeyword = pendingKeywords.find((k) => k.id === selectedKeywordId);
@@ -113,7 +170,13 @@ export function AutomationClient({
   };
 
   // Step simulation for rich UX during agent scout
-  const runScoutSimulation = async () => {
+  const runScoutSimulation = async (
+    overrideKeywordId?: string,
+    overrideQuery?: string
+  ) => {
+    const activeId = overrideKeywordId !== undefined ? overrideKeywordId : selectedKeywordId;
+    const activeCustom = overrideQuery !== undefined ? overrideQuery : customQuery.trim();
+
     setIsRunningScout(true);
     setScoutStep(1);
 
@@ -123,8 +186,8 @@ export function AutomationClient({
 
     try {
       const res = await runGoogleMapsScoutAction({
-        keywordId: selectedKeywordId || undefined,
-        query: selectedKeywordId ? undefined : customQuery.trim(),
+        keywordId: activeId || undefined,
+        query: activeId ? undefined : activeCustom,
         country: selectedCountry,
         maxResults: 10,
         modelId: selectedModel,
@@ -146,10 +209,10 @@ export function AutomationClient({
         });
 
         // Update local queues
-        if (selectedKeywordId) {
-          setPendingKeywords((prev) => prev.filter((k) => k.id !== selectedKeywordId));
+        if (activeId) {
+          setPendingKeywords((prev) => prev.filter((k) => k.id !== activeId));
           // Select next pending if available
-          const remaining = pendingKeywords.filter((k) => k.id !== selectedKeywordId);
+          const remaining = pendingKeywords.filter((k) => k.id !== activeId);
           setSelectedKeywordId(remaining[0]?.id || "");
         }
       } else {
@@ -486,7 +549,7 @@ export function AutomationClient({
           {/* Launch Action Button */}
           <div className="md:col-span-3 flex items-end">
             <Button
-              onClick={runScoutSimulation}
+              onClick={() => runScoutSimulation()}
               disabled={isRunningScout || (!selectedKeywordId && !customQuery.trim())}
               className="w-full h-11 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-sky-600 hover:from-violet-700 hover:to-sky-700 text-white font-bold text-xs gap-2 shadow-md cursor-pointer transition-all disabled:opacity-50"
             >

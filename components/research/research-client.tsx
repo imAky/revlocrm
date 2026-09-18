@@ -55,6 +55,7 @@ import {
 import { KeywordGeneratorModal } from "./keyword-generator-modal";
 import { BulkImportModal } from "./bulk-import-modal";
 import { AiKeywordGeneratorModal } from "./ai-keyword-generator-modal";
+import { HIGH_TICKET_NICHES } from "@/lib/constants/automation";
 import {
   ResearchKeywordItem,
   createKeywordAction,
@@ -89,11 +90,11 @@ export interface WorkspaceUserOption {
 
 interface ResearchClientProps {
   initialKeywords: ResearchKeywordItem[];
-  existingProspects?: ExistingProspectOption[];
-  workspaceUsers?: WorkspaceUserOption[];
+  existingProspects: any[];
+  workspaceUsers: { id: string; name: string | null; email: string | null; role?: string | null }[];
   workspaceId: string;
   currentUserId: string;
-  currentUserName?: string;
+  currentUserName: string;
 }
 
 export function ResearchClient({
@@ -174,10 +175,11 @@ export function ResearchClient({
     const favorite = keywords.filter((k) => k.status === "FAVORITE").length;
     const withLeads = keywords.filter((k) => (k.prospectsFoundCount || 0) > 0).length;
     const totalLeadsFound = keywords.reduce((acc, k) => acc + (k.prospectsFoundCount || 0), 0);
+    const totalCrmLeads = Math.max(existingProspects.length, totalLeadsFound);
     const completionRate = total > 0 ? Math.round((searched / total) * 100) : 0;
 
-    return { total, pending, searched, favorite, withLeads, totalLeadsFound, completionRate };
-  }, [keywords]);
+    return { total, pending, searched, favorite, withLeads, totalLeadsFound, totalCrmLeads, completionRate };
+  }, [keywords, existingProspects]);
 
   // User statistics & creator mapping
   const userStats = useMemo(() => {
@@ -212,7 +214,7 @@ export function ResearchClient({
     workspaceUsers.forEach((u) => {
       userMap.set(u.id, {
         id: u.id,
-        name: u.id === currentUserId ? "You" : u.name,
+        name: u.id === currentUserId ? "You" : (u.name || "Team Member"),
         email: u.email,
         role: u.role,
         count: userStats.countsByUser[u.id] || 0,
@@ -237,14 +239,57 @@ export function ResearchClient({
     });
   }, [workspaceUsers, keywords, userStats.countsByUser, currentUserId]);
 
+  // Synchronized High-Ticket Niches + existing database niches
+  const synchronizedNiches = useMemo(() => {
+    const list: { name: string; ticketSize?: string; isHighTicket?: boolean; count: number }[] = [];
+    const seen = new Set<string>();
+
+    // Count occurrences in current keywords
+    const nicheCounts: Record<string, number> = {};
+    keywords.forEach((k) => {
+      if (k.niche) {
+        const lower = k.niche.trim().toLowerCase();
+        nicheCounts[lower] = (nicheCounts[lower] || 0) + 1;
+      }
+    });
+
+    // 1. Prioritize HIGH_TICKET_NICHES (Commercial Roofing #1)
+    HIGH_TICKET_NICHES.forEach((ht) => {
+      const lower = ht.name.toLowerCase();
+      seen.add(lower);
+      list.push({
+        name: ht.name,
+        ticketSize: ht.avgContract,
+        isHighTicket: true,
+        count: nicheCounts[lower] || 0,
+      });
+    });
+
+    // 2. Add any other custom niches in the database
+    keywords.forEach((k) => {
+      if (k.niche) {
+        const lower = k.niche.trim().toLowerCase();
+        if (!seen.has(lower)) {
+          seen.add(lower);
+          list.push({
+            name: k.niche.trim(),
+            count: nicheCounts[lower] || 0,
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [keywords]);
+
   // Unique Niches for Filter Pills
   const availableNiches = useMemo(() => {
-    const set = new Set<string>();
-    keywords.forEach((k) => {
-      if (k.niche) set.add(k.niche);
-    });
-    return Array.from(set).sort();
-  }, [keywords]);
+    const withTargets = synchronizedNiches.filter((n) => n.count > 0);
+    if (withTargets.length > 0) {
+      return withTargets.map((n) => n.name);
+    }
+    return HIGH_TICKET_NICHES.slice(0, 5).map((n) => n.name);
+  }, [synchronizedNiches]);
 
   // Filtered and Sorted List
   const filteredKeywords = useMemo(() => {
@@ -805,14 +850,20 @@ export function ResearchClient({
             </div>
           </div>
 
-          {/* Discovered Leads */}
+          {/* Total Leads in CRM */}
           <div className="p-3.5 rounded-2xl bg-violet-500/5 border border-violet-500/20">
             <div className="flex items-center justify-between text-xs text-violet-600 dark:text-violet-400 mb-1">
-              <span className="font-semibold">Leads Discovered</span>
+              <span className="font-semibold">Total Leads in CRM</span>
               <Building2 className="h-3.5 w-3.5 text-violet-500" />
             </div>
-            <div className="text-xl font-bold text-violet-600 dark:text-violet-400">{stats.totalLeadsFound}</div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">Added to CRM Pipeline</div>
+            <div className="text-xl font-bold text-violet-600 dark:text-violet-400">
+              {stats.totalCrmLeads}
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              {stats.totalLeadsFound > 0
+                ? `${stats.totalLeadsFound} via research • Synchronized`
+                : "CRM Pipeline Active"}
+            </div>
           </div>
         </div>
       </div>
@@ -1040,25 +1091,58 @@ export function ResearchClient({
             </button>
           </div>
 
-          {/* Niche Pills */}
-          {availableNiches.length > 0 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none max-w-full">
-              <button
-                type="button"
-                onClick={() => setSelectedNiche("ALL")}
-                className={`px-2.5 py-1 rounded-xl text-[11px] font-medium border transition-all cursor-pointer whitespace-nowrap ${
-                  selectedNiche === "ALL"
-                    ? "bg-primary text-primary-foreground border-primary shadow-2xs"
-                    : "bg-muted/50 dark:bg-zinc-900/60 border-border/80 text-muted-foreground hover:text-foreground"
-                }`}
+          {/* Synchronized Niche Selector & Pills */}
+          <div className="flex flex-wrap items-center gap-2 max-w-full">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Building2 className="h-3.5 w-3.5 text-indigo-500 hidden sm:block" />
+              <select
+                value={selectedNiche}
+                onChange={(e) => setSelectedNiche(e.target.value)}
+                className="h-8 px-2.5 rounded-xl bg-card dark:bg-zinc-900 border border-border/80 text-xs text-foreground dark:text-zinc-100 shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer max-w-[260px]"
               >
-                All Niches
-              </button>
-              {availableNiches.map((n) => (
+                <option value="ALL">🏢 All Niches / Industries</option>
+                <optgroup label="High-Ticket Focus (AI Scout Matrix)">
+                  {synchronizedNiches
+                    .filter((n) => n.isHighTicket)
+                    .map((n) => (
+                      <option key={n.name} value={n.name}>
+                        {n.name} {n.count > 0 ? `(${n.count})` : ""}
+                      </option>
+                    ))}
+                </optgroup>
+                {synchronizedNiches.some((n) => !n.isHighTicket) && (
+                  <optgroup label="Other Discovered Niches">
+                    {synchronizedNiches
+                      .filter((n) => !n.isHighTicket)
+                      .map((n) => (
+                        <option key={n.name} value={n.name}>
+                          {n.name} {n.count > 0 ? `(${n.count})` : ""}
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
+              </select>
+
+              {selectedNiche !== "ALL" && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedNiche("ALL")}
+                  className="h-8 px-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                  title="Clear niche filter"
+                >
+                  <X className="h-3 w-3" />
+                  <span className="hidden sm:inline">Clear</span>
+                </button>
+              )}
+            </div>
+
+            {/* Quick Niche Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              {availableNiches.slice(0, 4).map((n) => (
                 <button
                   key={n}
                   type="button"
-                  onClick={() => setSelectedNiche(n)}
+                  onClick={() => setSelectedNiche(selectedNiche === n ? "ALL" : n)}
                   className={`px-2.5 py-1 rounded-xl text-[11px] font-medium border transition-all cursor-pointer whitespace-nowrap ${
                     selectedNiche.toLowerCase() === n.toLowerCase()
                       ? "bg-primary text-primary-foreground border-primary shadow-2xs"
@@ -1069,7 +1153,7 @@ export function ResearchClient({
                 </button>
               ))}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Search Bar */}
@@ -1184,7 +1268,7 @@ export function ResearchClient({
                       )}
                     </button>
                   </th>
-                  <th className="py-3.5 px-3">Niche / Industry</th>
+                  <th className="py-3.5 px-3 min-w-[170px]">Niche / Industry</th>
                   <th className="py-3.5 px-3">Added By</th>
                   <th className="py-3.5 px-3">Status & Workflow</th>
                   <th className="py-3.5 px-3">
@@ -1275,14 +1359,14 @@ export function ResearchClient({
                       </td>
 
                       {/* Niche Tag */}
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-3 min-w-[170px] max-w-[240px]">
                         {item.niche ? (
-                          <Badge
-                            variant="secondary"
-                            className="text-[10px] font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20"
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 max-w-full truncate"
+                            title={item.niche}
                           >
                             {item.niche}
-                          </Badge>
+                          </span>
                         ) : (
                           <span className="text-[11px] text-muted-foreground">—</span>
                         )}
@@ -1356,9 +1440,8 @@ export function ResearchClient({
                           </button>
 
                           {item.searchedBy === "AI_AGENT" && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30">
-                              <Bot className="h-2.5 w-2.5" />
-                              Revlo AI Scout
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30">
+                              🤖 AI Scout
                             </span>
                           )}
                         </div>
@@ -1396,9 +1479,15 @@ export function ResearchClient({
                             variant="outline"
                             asChild
                             className="h-7 px-2 text-[11px] font-semibold gap-1 rounded-lg border-indigo-500/30 text-indigo-600 dark:text-indigo-400 bg-indigo-500/5 hover:bg-indigo-500/15 cursor-pointer shadow-2xs"
-                            title="Open AI Scout on this target in Automation Hub"
+                            title={`Launch AI Scout for "${item.keyword}" in Automation Hub`}
                           >
-                            <Link href="/automation">
+                            <Link
+                              href={`/automation?keywordId=${item.id}&keyword=${encodeURIComponent(
+                                item.keyword
+                              )}&country=${item.country || "US"}&niche=${encodeURIComponent(
+                                item.niche || ""
+                              )}&autorun=true`}
+                            >
                               <Bot className="h-3 w-3" />
                               <span>Scout</span>
                             </Link>
@@ -1545,9 +1634,10 @@ export function ResearchClient({
                   Niche / Industry
                 </label>
                 <Input
-                  placeholder="e.g. Roofing"
+                  placeholder="e.g. Commercial Roofing & Industrial Restoration"
                   value={singleForm.niche}
                   onChange={(e) => setSingleForm({ ...singleForm, niche: e.target.value })}
+                  list="high-ticket-niches-list"
                   className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                 />
               </div>
@@ -1636,6 +1726,8 @@ export function ResearchClient({
                 <Input
                   value={editForm.niche}
                   onChange={(e) => setEditForm({ ...editForm, niche: e.target.value })}
+                  list="high-ticket-niches-list"
+                  placeholder="e.g. Commercial Roofing & Industrial Restoration"
                   className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                 />
               </div>
@@ -1873,6 +1965,8 @@ export function ResearchClient({
                   <Input
                     value={quickLeadForm.niche}
                     onChange={(e) => setQuickLeadForm({ ...quickLeadForm, niche: e.target.value })}
+                    list="high-ticket-niches-list"
+                    placeholder="e.g. Commercial Roofing & Industrial Restoration"
                     className="bg-background/90 dark:bg-zinc-950/90 border-border/80 rounded-xl"
                   />
                 </div>
@@ -1944,6 +2038,13 @@ export function ResearchClient({
           window.location.reload();
         }}
       />
+
+      {/* Synchronized High-Ticket Niches Datalist */}
+      <datalist id="high-ticket-niches-list">
+        {HIGH_TICKET_NICHES.map((n) => (
+          <option key={n.name} value={n.name} label={`${n.avgContract} • ${n.urgency} Urgency`} />
+        ))}
+      </datalist>
     </div>
   );
 }
