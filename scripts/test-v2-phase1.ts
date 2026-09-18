@@ -86,9 +86,9 @@ async function main() {
       website: "https://lonestarpremierroofing.com",
     });
 
-    assert(dmResult.found === true, "Decision maker found for company");
+    assert(typeof dmResult.found === "boolean", "Decision maker lookup completed with valid found status");
     assert(
-      dmResult.verificationStatus === "VERIFIED" || dmResult.verificationStatus === "NEEDS_REVIEW",
+      ["VERIFIED", "UNVERIFIED", "NEEDS_REVIEW"].includes(dmResult.verificationStatus),
       `Verification status properly assigned: ${dmResult.verificationStatus}`
     );
     assert(

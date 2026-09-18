@@ -723,7 +723,7 @@ export function ResearchClient({
               className="gap-1.5 text-xs font-bold rounded-xl shadow-md cursor-pointer"
             >
               <Sparkles className="h-4 w-4 text-amber-300" />
-              <span>Tier-1 AI Scout Generator</span>
+              <span>AI Territory Matrix Scout</span>
             </Button>
           </div>
         </div>

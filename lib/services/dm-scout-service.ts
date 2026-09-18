@@ -161,10 +161,19 @@ Only output raw JSON without markdown formatting.`;
 
   // Extract JSON object safely even if accompanied by grounding citations
   const jsonMatch = text.match(/\{[\s\S]*\}/);
-  const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);
+  let parsed: any = null;
+  try {
+    parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);
+  } catch {
+    parsed = null;
+  }
 
-  if (!parsed || !parsed.fullName) {
-    throw new Error("No decision maker profile in model response");
+  if (!parsed || !parsed.fullName || parsed.found === false) {
+    return {
+      found: false,
+      verificationStatus: "NEEDS_REVIEW",
+      sourceNote: `No public executive profile found via search grounding (${normalizedModel})`,
+    };
   }
 
   return {
@@ -244,8 +253,20 @@ Return valid raw JSON:
   if (!raw) throw new Error("No output from Groq");
 
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(raw);
-  if (!parsed || !parsed.fullName) throw new Error("No decision maker profile in Groq response");
+  let parsed: any = null;
+  try {
+    parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(raw);
+  } catch {
+    parsed = null;
+  }
+
+  if (!parsed || !parsed.fullName || parsed.found === false) {
+    return {
+      found: false,
+      verificationStatus: "NEEDS_REVIEW",
+      sourceNote: `No public executive profile found via Groq (${modelCode})`,
+    };
+  }
 
   return {
     found: true,

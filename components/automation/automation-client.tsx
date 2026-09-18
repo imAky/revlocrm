@@ -38,6 +38,7 @@ import {
   importDiscoveredProspectAction,
   bulkImportDiscoveredProspectsAction,
   fetchNextPendingKeywordAction,
+  runAutonomousAgentCycleAction,
 } from "@/lib/actions/automation";
 import { DiscoveredProspect, DiscoveryResult } from "@/lib/services/discovery-service";
 import { AVAILABLE_AI_MODELS } from "@/lib/constants/automation";
@@ -79,9 +80,37 @@ export function AutomationClient({
   const [latestDiscovery, setLatestDiscovery] = useState<DiscoveryResult | null>(null);
   const [importedIds, setImportedIds] = useState<Set<string>>(new Set());
   const [isBulkImporting, setIsBulkImporting] = useState(false);
+  const [isRunningCycle, setIsRunningCycle] = useState(false);
+  const [cycleReport, setCycleReport] = useState<any>(null);
 
   // Active target keyword
   const activePendingKeyword = pendingKeywords.find((k) => k.id === selectedKeywordId);
+
+  // Autonomous Cycle Execution
+  const handleRunAutonomousCycle = async () => {
+    setIsRunningCycle(true);
+    setCycleReport(null);
+    try {
+      const res = await runAutonomousAgentCycleAction({
+        country: selectedCountry,
+        modelId: selectedModel,
+      });
+      if (res.success) {
+        confetti({ particleCount: 60, spread: 75, origin: { y: 0.6 } });
+        setCycleReport(res);
+        const next = await fetchNextPendingKeywordAction();
+        if (next.keyword) {
+          setSelectedKeywordId(next.keyword.id);
+        }
+      } else {
+        alert("Autonomous agent cycle notice: " + (res.message || "Failed to complete cycle"));
+      }
+    } catch (err: any) {
+      alert("Error running autonomous cycle: " + (err?.message || "Unknown error"));
+    } finally {
+      setIsRunningCycle(false);
+    }
+  };
 
   // Step simulation for rich UX during agent scout
   const runScoutSimulation = async () => {
@@ -182,25 +211,25 @@ export function AutomationClient({
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">
-                  Revlo Intelligence & Automation Hub
+                  Revlo Autonomous Lead Agent
                 </h1>
                 <Badge
                   variant="purple"
                   className="text-[10px] font-mono tracking-wider uppercase px-2 py-0.5"
                 >
-                  V2 Engine • Phase 1
+                  Autonomous Engine
                 </Badge>
               </div>
             </div>
             <p className="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
               Autonomous prospecting agent powered by free AI & Google Maps. Mines Tier-1 markets
-              (US, UK, CA, AU) for high-value local services, detects zero-website gold targets,
+              for high-value local services, detects zero-website gold targets,
               and identifies verified decision-makers.
             </p>
           </div>
 
           {/* Action Triggers */}
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <Button
               size="sm"
               variant="outline"
@@ -215,15 +244,67 @@ export function AutomationClient({
 
             <Button
               size="sm"
-              variant="gradient"
+              variant="outline"
               onClick={() => setIsAiGenOpen(true)}
+              className="gap-2 text-xs font-bold rounded-xl border-indigo-200 dark:border-indigo-800/40 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/50 cursor-pointer shadow-2xs"
+            >
+              <Sparkles className="h-4 w-4 text-indigo-500" />
+              <span>AI Territory Matrix Scout</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="gradient"
+              onClick={handleRunAutonomousCycle}
+              disabled={isRunningCycle}
               className="gap-2 text-xs font-bold rounded-xl shadow-md cursor-pointer"
             >
-              <Sparkles className="h-4 w-4 text-amber-300" />
-              <span>Generate Tier-1 Keywords</span>
+              {isRunningCycle ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin text-amber-300" />
+                  <span>Running Autonomous Cycle...</span>
+                </>
+              ) : (
+                <>
+                  <Bot className="h-4 w-4 text-amber-300" />
+                  <span>Run Autonomous Agent Cycle</span>
+                </>
+              )}
             </Button>
           </div>
         </div>
+
+        {/* Autonomous Cycle Result Banner */}
+        {cycleReport && (
+          <div className="mt-5 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 space-y-2 animate-in fade-in">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-bold text-xs">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                <span>Autonomous Agent Cycle Completed Successfully</span>
+              </div>
+              <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/40">
+                Live Ingestion
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {cycleReport.summary}
+            </p>
+            <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] font-mono">
+              <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/20 font-semibold">
+                Target: {cycleReport.keyword}
+              </span>
+              <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/20 font-semibold">
+                Discovered: {cycleReport.prospectsDiscovered}
+              </span>
+              <span className="px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/20 font-semibold text-amber-700 dark:text-amber-300">
+                🔥 No Website: {cycleReport.noWebsiteCount}
+              </span>
+              <span className="px-2 py-0.5 rounded-lg bg-indigo-500/15 border border-indigo-500/20 font-semibold text-indigo-700 dark:text-indigo-300">
+                Decision Makers: {cycleReport.decisionMakersFound}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* 2. Key Metrics Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 pt-6 mt-6 border-t border-slate-100 dark:border-zinc-800/80">

@@ -14,6 +14,7 @@ import {
   ShieldAlert,
   Settings,
   Sparkles,
+  Bot,
   ChevronRight,
   X,
   Layers,
@@ -32,7 +33,7 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { title: "Automation", href: "/automation", icon: Sparkles, badge: "V2" },
+  { title: "AI Agents", href: "/automation", icon: Bot },
   { title: "Prospects", href: "/prospects", icon: Building2 },
   { title: "Pipeline", href: "/pipeline", icon: GitPullRequest },
   { title: "Contacts", href: "/contacts", icon: Users2 },
