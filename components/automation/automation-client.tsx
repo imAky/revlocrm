@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import confetti from "canvas-confetti";
 import {
   Sparkles,
@@ -39,6 +39,7 @@ import {
   importDiscoveredProspectAction,
   bulkImportDiscoveredProspectsAction,
   fetchNextPendingKeywordAction,
+  fetchPendingKeywordsAction,
   runAutonomousAgentCycleAction,
 } from "@/lib/actions/automation";
 import { DiscoveredProspect, DiscoveryResult } from "@/lib/services/discovery-service";
@@ -63,6 +64,7 @@ export function AutomationClient({
   totalKeywordsCount = 0,
   noWebsiteCount = 0,
 }: AutomationClientProps) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const hasAutoRanKeyRef = useRef<string | null>(null);
 
@@ -73,13 +75,14 @@ export function AutomationClient({
   const [researchKeywordsList, setResearchKeywordsList] = useState<any[]>(
     initialResearchKeywords.length > 0 ? initialResearchKeywords : initialPendingKeywords
   );
-  const [pendingKeywords, setPendingKeywords] = useState(initialPendingKeywords);
+  // Pure Pending Queue for the dropdown & sequential execution
+  const [pendingKeywords, setPendingKeywords] = useState<any[]>(initialPendingKeywords);
   const [searchedKeywords, setSearchedKeywords] = useState(initialSearchedKeywords);
   const [aiProspects, setAiProspects] = useState(initialAiProspects);
 
-  // Scout Runner State (Default to the first item matching the research table order)
+  // Scout Runner State (Default to the first pending target in the queue)
   const [selectedKeywordId, setSelectedKeywordId] = useState<string>(
-    initialResearchKeywords[0]?.id || pendingKeywords[0]?.id || ""
+    initialPendingKeywords[0]?.id || ""
   );
   const [customQuery, setCustomQuery] = useState("");
   const [selectedCountry, setSelectedCountry] = useState<"US" | "GB" | "CA" | "AU">("US");
@@ -107,19 +110,19 @@ export function AutomationClient({
     if (qKeywordId || qKeyword) {
       let activeTargetId = qKeywordId || "";
 
-      // Look up target in the synchronized list
-      const existing = researchKeywordsList.find(
+      // Check if target is already present in pending queue
+      const existingInPending = pendingKeywords.find(
         (k) =>
           (qKeywordId && k.id === qKeywordId) ||
           (qKeyword && k.keyword?.toLowerCase() === qKeyword.toLowerCase())
       );
 
-      if (existing) {
-        setSelectedKeywordId(existing.id);
+      if (existingInPending) {
+        setSelectedKeywordId(existingInPending.id);
         setCustomQuery("");
-        activeTargetId = existing.id;
+        activeTargetId = existingInPending.id;
       } else if (qKeyword) {
-        // Prepend target to list if not found
+        // Prepend target to pending list so it shows in the dropdown immediately
         const injectedId = qKeywordId || `kw-${Date.now()}`;
         const newEntry: any = {
           id: injectedId,
@@ -128,9 +131,17 @@ export function AutomationClient({
           country: qCountry || "US",
           status: "PENDING",
         };
+        setPendingKeywords((prev) => [
+          newEntry,
+          ...prev.filter(
+            (k) => k.id !== injectedId && k.keyword?.toLowerCase() !== qKeyword.toLowerCase()
+          ),
+        ]);
         setResearchKeywordsList((prev) => [
           newEntry,
-          ...prev.filter((k) => k.id !== injectedId && k.keyword !== qKeyword),
+          ...prev.filter(
+            (k) => k.id !== injectedId && k.keyword?.toLowerCase() !== qKeyword.toLowerCase()
+          ),
         ]);
         setSelectedKeywordId(injectedId);
         setCustomQuery("");
@@ -141,16 +152,34 @@ export function AutomationClient({
       const runKey = `${activeTargetId}:${qKeyword || ""}`;
       if (qAutorun === "true" && hasAutoRanKeyRef.current !== runKey) {
         hasAutoRanKeyRef.current = runKey;
-        const timer = setTimeout(() => {
-          runScoutSimulation(activeTargetId, qKeyword || undefined);
-        }, 350);
-        return () => clearTimeout(timer);
+
+        const targetIdToRun = activeTargetId;
+        const targetQueryToRun = qKeyword || undefined;
+        const targetCountryToRun = qCountry || selectedCountry || "US";
+
+        // Strip autorun from browser address bar without reload
+        if (typeof window !== "undefined") {
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("autorun");
+            window.history.replaceState({}, "", url.toString());
+          } catch {
+            // ignore
+          }
+        }
+
+        // Trigger scout simulation in next tick without a cancellable effect timer
+        setTimeout(() => {
+          runScoutSimulation(targetIdToRun, targetQueryToRun, targetCountryToRun);
+        }, 50);
       }
     }
   }, [searchParams]);
 
   // Active target keyword
-  const activePendingKeyword = researchKeywordsList.find((k) => k.id === selectedKeywordId);
+  const activePendingKeyword =
+    pendingKeywords.find((k) => k.id === selectedKeywordId) ||
+    researchKeywordsList.find((k) => k.id === selectedKeywordId);
 
   // Autonomous Cycle Execution
   const handleRunAutonomousCycle = async () => {
@@ -181,12 +210,16 @@ export function AutomationClient({
   // Step simulation for rich UX during agent scout
   const runScoutSimulation = async (
     overrideKeywordId?: string,
-    overrideQuery?: string
+    overrideQuery?: string,
+    overrideCountry?: "US" | "GB" | "CA" | "AU"
   ) => {
     const activeId = overrideKeywordId !== undefined ? overrideKeywordId : selectedKeywordId;
-    const activeItem = researchKeywordsList.find((k) => k.id === activeId);
+    const activeItem =
+      pendingKeywords.find((k) => k.id === activeId) ||
+      researchKeywordsList.find((k) => k.id === activeId);
     const activeCustom = overrideQuery !== undefined ? overrideQuery : customQuery.trim();
     const targetQuery = activeCustom || activeItem?.keyword || "";
+    const targetCountry = overrideCountry || (activeItem?.country as any) || selectedCountry;
 
     setIsRunningScout(true);
     setScoutStep(1);
@@ -199,7 +232,7 @@ export function AutomationClient({
       const res = await runGoogleMapsScoutAction({
         keywordId: activeId || undefined,
         query: targetQuery || undefined,
-        country: selectedCountry,
+        country: targetCountry,
         maxResults: 10,
         modelId: selectedModel,
       });
@@ -234,7 +267,17 @@ export function AutomationClient({
                 : k
             )
           );
-          setPendingKeywords((prev) => prev.filter((k) => k.id !== activeId));
+
+          // Remove completed keyword from pending list and auto-advance to next pending query
+          setPendingKeywords((prev) => {
+            const nextList = prev.filter((k) => k.id !== activeId);
+            if (nextList.length > 0) {
+              setSelectedKeywordId(nextList[0].id);
+            } else {
+              setSelectedKeywordId("");
+            }
+            return nextList;
+          });
         }
       } else {
         alert(res.error || "Scout discovery completed with no results.");
@@ -528,11 +571,11 @@ export function AutomationClient({
           <div className="md:col-span-5">
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                1. Select Research Query ({researchKeywordsList.length} targets)
+                1. Select Pending Query ({pendingKeywords.length} in queue)
               </label>
               {activePendingKeyword && (
                 <span className="text-[10px] font-mono text-indigo-500 font-bold">
-                  {activePendingKeyword.status === "SEARCHED" ? "✓ Researched" : "🎯 Ready to Scout"}
+                  🎯 Ready to Scout
                 </span>
               )}
             </div>
@@ -545,13 +588,12 @@ export function AutomationClient({
               disabled={isRunningScout}
               className="w-full h-11 px-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-900 text-xs font-medium text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
             >
-              {researchKeywordsList.length === 0 ? (
-                <option value="">No research keywords (generate some above!)</option>
+              {pendingKeywords.length === 0 ? (
+                <option value="">No pending queries (all scouted or generate more!)</option>
               ) : (
-                researchKeywordsList.map((k) => (
+                pendingKeywords.map((k) => (
                   <option key={k.id} value={k.id}>
-                    {k.status === "SEARCHED" ? "✓ " : "🎯 "}
-                    {k.keyword} {k.niche ? `(${k.niche})` : ""} {k.status === "SEARCHED" ? "• Done" : "• Pending"}
+                    🎯 {k.keyword} {k.niche ? `(${k.niche})` : ""} [{k.country || "US"}]
                   </option>
                 ))
               )}
@@ -560,7 +602,7 @@ export function AutomationClient({
               <div className="mt-1 flex items-center gap-1.5 text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
                 <span className="truncate">
-                  Target: <strong className="font-bold">{activePendingKeyword.keyword}</strong>
+                  Pending Target: <strong className="font-bold">{activePendingKeyword.keyword}</strong>
                 </span>
               </div>
             )}
@@ -984,13 +1026,14 @@ export function AutomationClient({
         open={isAiGenOpen}
         onOpenChange={setIsAiGenOpen}
         onKeywordsAdded={() => {
-          // Re-fetch pending keywords
-          fetchNextPendingKeywordAction().then((res) => {
-            if (res.hasPending && res.keyword) {
-              setPendingKeywords((prev) => [res.keyword, ...prev]);
-              if (!selectedKeywordId) setSelectedKeywordId(res.keyword.id);
+          fetchPendingKeywordsAction().then((res) => {
+            if (res.success && res.keywords && res.keywords.length > 0) {
+              setPendingKeywords(res.keywords);
+              setResearchKeywordsList((prev) => [...res.keywords, ...prev]);
+              if (!selectedKeywordId) setSelectedKeywordId(res.keywords[0].id);
             }
           });
+          router.refresh();
         }}
       />
     </div>

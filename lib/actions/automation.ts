@@ -105,6 +105,30 @@ export async function fetchNextPendingKeywordAction(options?: { workspaceId?: st
 }
 
 /**
+ * Fetches all pending keywords in the workspace for sequential processing.
+ */
+export async function fetchPendingKeywordsAction(options?: { workspaceId?: string }) {
+  const ctx = await getAuthOrFallback(options);
+
+  const keywords = await db
+    .select()
+    .from(researchKeywords)
+    .where(
+      and(
+        eq(researchKeywords.workspaceId, ctx.workspaceId),
+        eq(researchKeywords.status, "PENDING")
+      )
+    )
+    .orderBy(desc(researchKeywords.createdAt))
+    .limit(250);
+
+  return {
+    success: true,
+    keywords,
+  };
+}
+
+/**
  * AI Generation of High-Ticket Keywords for Tier-1 Countries & Territories
  */
 export async function generateKeywordsAction(options: {
